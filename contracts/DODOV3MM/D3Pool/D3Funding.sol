@@ -33,7 +33,7 @@ contract D3Funding is D3Storage {
     /// @notice repay vault with certain amount of borrowed assets 
     function repay(address token, uint256 amount) external onlyOwner nonReentrant poolOngoing {
         // call vault's poolRepay
-        ID3Vault(state._D3_VAULT_).poolRepay(token, amount);
+        ID3Vault(state._D3_VAULT_).poolRepay(token, amount); //从这里开始
 
         _updateReserve(token);
         require(checkSafe(), Errors.NOT_SAFE);
