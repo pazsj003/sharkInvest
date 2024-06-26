@@ -79,20 +79,24 @@ contract D3VaultFunding is D3VaultStorage {
     function poolBorrow(address token, uint256 amount) external nonReentrant allowedToken(token) onlyPool {
         uint256 quota = ID3PoolQuota(_POOL_QUOTA_).getPoolQuota(msg.sender, token);
         accrueInterest(token);
-
+        //获取资产和借款记录：
         AssetInfo storage info = assetInfo[token];
         BorrowRecord storage record = info.borrowRecord[msg.sender];
         uint256 usedQuota = _borrowAmount(record.amount, record.interestIndex, info.borrowIndex); // borrowAmount = record.amount * newIndex / oldIndex
+        //确保借款总量不超过配额。
         if (amount + usedQuota > quota) revert Errors.D3VaultExceedQuota();
+        //确保借款金额不超过可用余额。
         if (amount > info.balance - (info.totalReserves - info.withdrawnReserves)) revert Errors.D3VaultAmountExceedVaultBalance();
 
         uint256 interests = usedQuota - record.amount;
-
+        //更新借款记录
         if (record.amount == 0 && usedQuota + amount > 0) { borrowerCount++; }
         record.amount = usedQuota + amount;
         record.interestIndex = info.borrowIndex;
         info.totalBorrows = info.totalBorrows + amount;
         info.balance = info.balance - amount; 
+
+        //转移代币
         IERC20(token).safeTransfer(msg.sender, amount);
 
         emit PoolBorrow(msg.sender, token, amount, interests);
@@ -403,7 +407,8 @@ contract D3VaultFunding is D3VaultStorage {
 
     function getCollateralRatio(address pool) public view returns (uint256) {
         uint256 collateral = 0;
-        uint256 debt = 0;
+        uint256 debt = 0;  
+        // 算所有代币的 抵押跟 借贷的总和
         for (uint256 i; i < tokenList.length; i++) {
             address token = tokenList[i];
             AssetInfo storage info = assetInfo[token];
@@ -412,6 +417,8 @@ contract D3VaultFunding is D3VaultStorage {
             uint256 price = ID3Oracle(_ORACLE_).getPrice(token);
             
             if (balance >= borrows) {
+                //min(balance - borrows, info.maxCollateralAmount)：
+                //确保抵押品数量不超过允许的最大抵押数量。即使余额减去借款的数量很大，抵押品数量也不会超过info.maxCollateralAmount。
                 collateral += min(balance - borrows, info.maxCollateralAmount).mul(info.collateralWeight).mul(price);
             } else {
                 debt += (borrows - balance).mul(info.debtWeight).mul(price);

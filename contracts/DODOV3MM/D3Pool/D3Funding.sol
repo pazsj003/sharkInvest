@@ -16,9 +16,12 @@ contract D3Funding is D3Storage {
     function borrow(address token, uint256 amount) external onlyOwner nonReentrant poolOngoing {
         // call vault's poolBorrow function
         ID3Vault(state._D3_VAULT_).poolBorrow(token, amount);
-        // approve max, ensure vault could force liquidate
+        /* approve max, ensure vault could force liquidate 为什么在 poolBorrow 之后检查和授权？
+        借款操作的独立性：
+        借款操作需要首先完成，以确保借出的代币确实到账。
+        授权操作是为了确保将来 D3Vault 可以处理这些代币（例如，进行强制清算）。*/
         uint256 allowance = IERC20(token).allowance(address(this), state._D3_VAULT_);
-        if(allowance < type(uint256).max) {
+        if(allowance < type(uint256).max) { 
             IERC20(token).forceApprove(state._D3_VAULT_, type(uint256).max);
         }
 
