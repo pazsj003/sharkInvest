@@ -50,48 +50,73 @@ library MakerTypes {
     uint256 internal constant ONE = 10 ** 18;
 
     // [ask amounts(16) | ask amounts decimal(8) | bid amounts(16) | bid amounts decimal(8) ]
-    function parseAskAmount(uint64 amountInfo) internal pure returns (uint256 amountWithDecimal) {
+    function parseAskAmount(
+        uint64 amountInfo
+    ) internal pure returns (uint256 amountWithDecimal) {
         uint256 askAmount = (amountInfo >> (ONE_AMOUNT_BIT + 8)) & 0xffff;
-        uint256 askAmountDecimal = (amountInfo >> ONE_AMOUNT_BIT) & 255;
+        uint256 askAmountDecimal = (amountInfo >> ONE_AMOUNT_BIT) & 255; //8 bit
         amountWithDecimal = askAmount * (10 ** askAmountDecimal);
     }
 
     // [ask amounts(16) | ask amounts decimal(8) | bid amounts(16) | bid amounts decimal(8) ]
-    function parseBidAmount(uint64 amountInfo) internal pure returns (uint256 amountWithDecimal) {
+    function parseBidAmount(
+        uint64 amountInfo
+    ) internal pure returns (uint256 amountWithDecimal) {
         uint256 bidAmount = (amountInfo >> 8) & 0xffff;
-        uint256 bidAmountDecimal = amountInfo & 255;
+        uint256 bidAmountDecimal = amountInfo & 255; // 8位
         amountWithDecimal = bidAmount * (10 ** bidAmountDecimal);
     }
-
-    function parseAllPrice(uint80 priceInfo)
+    //done
+    function parseAllPrice(
+        uint80 priceInfo
+    )
         internal
         pure
-        returns (uint256 askUpPrice, uint256 askDownPrice, uint256 bidUpPrice, uint256 bidDownPrice, uint256 swapFee)
+        returns (
+            uint256 askUpPrice,
+            uint256 askDownPrice,
+            uint256 bidUpPrice,
+            uint256 bidDownPrice,
+            uint256 swapFee
+        )
     {
         {
-        uint256 midPrice = (priceInfo >> 56) & 0xffff;
-        uint256 midPriceDecimal = (priceInfo >> 48) & 255;
-        uint256 midPriceWithDecimal = midPrice * (10 ** midPriceDecimal);
+            // [mid price(16) | mid price decimal(8) | fee rate(16) | ask up rate (16) | bid down rate(16)] = 72 bit
+            uint256 midPrice = (priceInfo >> 56) & 0xffff; // 72-16，  一个16进制占用4个2进制，所以是0xffff
+            uint256 midPriceDecimal = (priceInfo >> 48) & 255; //72-16-8  255 的二进制表示是 11111111，表示8位全为1
+            uint256 midPriceWithDecimal = midPrice * (10 ** midPriceDecimal); //8位
 
-        uint256 swapFeeRate = (priceInfo >> 32) & 0xffff;
-        uint256 askUpRate = (priceInfo >> 16) & 0xffff;
-        uint256 bidDownRate = priceInfo & 0xffff;
+            uint256 swapFeeRate = (priceInfo >> 32) & 0xffff; //fee rate, 向右移动32
+            uint256 askUpRate = (priceInfo >> 16) & 0xffff;
+            uint256 bidDownRate = priceInfo & 0xffff;
 
-        // swap fee rate standarlize
-        swapFee = swapFeeRate * (10 ** 14);
-        uint256 swapFeeSpread = DecimalMath.mul(midPriceWithDecimal, swapFee);
+            // swap fee rate standarlize
+            swapFee = swapFeeRate * (10 ** 14);
+            // // midprice unit is 1e18
+            // all rate unit is 10000
+            //  (midPrice)*10*18 * (swapFeeRate)10**14 / 10**18 =swapFeeSpread *10**14
+            uint256 swapFeeSpread = DecimalMath.mul(
+                midPriceWithDecimal,
+                swapFee
+            );
 
-        // ask price standarlize
-        askDownPrice = midPriceWithDecimal + swapFeeSpread;
-        askUpPrice = midPriceWithDecimal + midPriceWithDecimal * askUpRate / (10 ** 4);
-        require(askDownPrice <= askUpPrice, "ask price invalid");
+            // ask price standarlize
+            askDownPrice = midPriceWithDecimal + swapFeeSpread;
+            askUpPrice =
+                midPriceWithDecimal +
+                (midPriceWithDecimal * askUpRate) /
+                (10 ** 4); //// midprice unit is 1e18
+            // all rate unit is 10000
+            require(askDownPrice <= askUpPrice, "ask price invalid");
 
-        // bid price standarlize
-        uint reversalBidUp = midPriceWithDecimal - swapFeeSpread;
-        uint reversalBidDown = midPriceWithDecimal - midPriceWithDecimal * bidDownRate / (10 ** 4);
-        require(reversalBidDown <= reversalBidUp, "bid price invalid");
-        bidDownPrice = DecimalMath.reciprocalCeil(reversalBidUp);
-        bidUpPrice = DecimalMath.reciprocalCeil(reversalBidDown);
+            // bid price standarlize
+            uint reversalBidUp = midPriceWithDecimal - swapFeeSpread;
+            uint reversalBidDown = midPriceWithDecimal -
+                (midPriceWithDecimal * bidDownRate) /
+                (10 ** 4);
+            require(reversalBidDown <= reversalBidUp, "bid price invalid");
+            bidDownPrice = DecimalMath.reciprocalCeil(reversalBidUp);
+            bidUpPrice = DecimalMath.reciprocalCeil(reversalBidDown);
         }
     }
 

@@ -61,7 +61,10 @@ contract D3MMFactory is InitializableOwnable {
         _D3POOL_TEMPS[poolType] = newTemp;
     }
     /// @notice Set new D3Maker template
-    function setD3MakerTemp(uint256 poolType, address newMakerTemp) public onlyOwner {
+    function setD3MakerTemp(
+        uint256 poolType,
+        address newMakerTemp
+    ) public onlyOwner {
         _D3MAKER_TEMPS_[poolType] = newMakerTemp;
     }
 
@@ -97,7 +100,9 @@ contract D3MMFactory is InitializableOwnable {
         uint256 maxInterval,
         uint256 poolType
     ) external onlyOwner returns (address newPool) {
-        address newMaker = ICloneFactory(_CLONE_FACTORY_).clone(_D3MAKER_TEMPS_[poolType]);
+        address newMaker = ICloneFactory(_CLONE_FACTORY_).clone(
+            _D3MAKER_TEMPS_[poolType]
+        );
         newPool = ICloneFactory(_CLONE_FACTORY_).clone(_D3POOL_TEMPS[poolType]);
 
         ID3MM(newPool).init(
@@ -108,7 +113,7 @@ contract D3MMFactory is InitializableOwnable {
             _FEE_RATE_MODEL_,
             _MAINTAINER_
         );
-        
+
         ID3Maker(newMaker).init(maker, newPool, maxInterval);
 
         d3Vault.addD3PoolByFactory(newPool);

@@ -18,9 +18,10 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 contract MockFailD3Proxy is IDODOSwapCallback {
     using SafeERC20 for IERC20;
 
-    address immutable public _DODO_APPROVE_PROXY_;
-    address immutable public _WETH_;
-    address immutable public _ETH_ADDRESS_ = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
+    address public immutable _DODO_APPROVE_PROXY_;
+    address public immutable _WETH_;
+    address public immutable _ETH_ADDRESS_ =
+        0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
 
     struct SwapCallbackData {
         bytes data;
@@ -35,7 +36,7 @@ contract MockFailD3Proxy is IDODOSwapCallback {
     }
 
     // ============ Constructor ============
-    
+
     constructor(address approveProxy, address weth) {
         _DODO_APPROVE_PROXY_ = approveProxy;
         _WETH_ = weth;
@@ -50,8 +51,15 @@ contract MockFailD3Proxy is IDODOSwapCallback {
         uint256 minReceiveAmount,
         bytes calldata data,
         uint256 deadLine
-    ) public payable judgeExpired(deadLine) returns(uint256 receiveToAmount) {
-        receiveToAmount = ID3MM(pool).sellToken(to, fromToken, toToken, fromAmount, minReceiveAmount, data);
+    ) public payable judgeExpired(deadLine) returns (uint256 receiveToAmount) {
+        receiveToAmount = ID3MM(pool).sellToken(
+            to,
+            fromToken,
+            toToken,
+            fromAmount,
+            minReceiveAmount,
+            data
+        );
     }
 
     function buyTokens(
@@ -63,8 +71,15 @@ contract MockFailD3Proxy is IDODOSwapCallback {
         uint256 maxPayAmount,
         bytes calldata data,
         uint256 deadLine
-    ) public payable judgeExpired(deadLine) returns(uint256 payFromAmount) {
-        payFromAmount = ID3MM(pool).buyToken(to, fromToken, toToken, quoteAmount, maxPayAmount, data);
+    ) public payable judgeExpired(deadLine) returns (uint256 payFromAmount) {
+        payFromAmount = ID3MM(pool).buyToken(
+            to,
+            fromToken,
+            toToken,
+            quoteAmount,
+            maxPayAmount,
+            data
+        );
     }
 
     function d3MMSwapCallBack(
@@ -95,7 +110,12 @@ contract MockFailD3Proxy is IDODOSwapCallback {
             SafeERC20.safeTransfer(IERC20(token), to, value);
         } else {
             // pull payment
-            IDODOApproveProxy(_DODO_APPROVE_PROXY_).claimTokens(token, from, to, value);
+            IDODOApproveProxy(_DODO_APPROVE_PROXY_).claimTokens(
+                token,
+                from,
+                to,
+                value
+            );
         }
     }
 

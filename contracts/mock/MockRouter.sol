@@ -26,12 +26,16 @@ contract MockRouter {
         slippage = s;
     }
 
-    function swap(address fromToken, address toToken, uint256 fromAmount) public {
+    function swap(
+        address fromToken,
+        address toToken,
+        uint256 fromAmount
+    ) public {
         require(enable, "router not available");
         uint256 fromTokenPrice = ID3Oracle(oracle).getPrice(fromToken);
         uint256 toTokenPrice = ID3Oracle(oracle).getPrice(toToken);
         uint256 toAmount = (fromAmount * fromTokenPrice) / toTokenPrice;
-        toAmount = toAmount * slippage / 100;
+        toAmount = (toAmount * slippage) / 100;
         MockERC20(toToken).transfer(msg.sender, toAmount);
     }
 

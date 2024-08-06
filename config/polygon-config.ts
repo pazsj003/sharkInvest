@@ -7,7 +7,7 @@ const POLYGON_CONFIG = {
     WMATIC: "0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270",
     USDT: "0xc2132D05D31c914a87C6611C10748AEb04B58e8F", // decimals 6
     USDC: "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174", // decimals 6
-  }, 
+  },
   deployedAddress: {
     DODOApprove: "0x6D310348d5c12009854DFCf72e0DF9027e8cb4f4",
     daiAddress: "0x8f3Cf7ad23Cd3CaDbD9735AFf958023239c6A063",
@@ -26,7 +26,7 @@ const POLYGON_CONFIG = {
     FeeRateModel: "0x0Cd61B78fF75701eA23fCaec5a22D464F7E1Dc1e",
     D3MMFactory: "0xFeAFe253802b77456B4627F8c2306a9CeBb5d681",
     D3Proxy: "0x1c29eFa924770154fD44569c5B2bF8103feA45A1", // don't forget to add this to DODOApproveProxy
-    D3MM: "", 
+    D3MM: "",
     dodoPriceFeed: "",
   },
   chainlinkPriceFeed: {

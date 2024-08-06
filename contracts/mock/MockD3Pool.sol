@@ -5,7 +5,7 @@ pragma solidity 0.8.16;
 contract MockD3Pool {
     address public _CREATOR_;
     uint256 public allFlag;
-    
+
     constructor() {
         _CREATOR_ = msg.sender;
     }
@@ -14,7 +14,7 @@ contract MockD3Pool {
         allFlag = newFlag;
     }
 
-    function getFeeRate(address) public pure returns(uint256){
+    function getFeeRate(address) public pure returns (uint256) {
         return 2 * (10 ** 14);
     }
 

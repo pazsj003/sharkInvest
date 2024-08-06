@@ -62,7 +62,12 @@ contract DODOApprove is InitializableOwnable {
         lockSetProxy();
     }
 
-    function claimTokens(address token, address who, address dest, uint256 amount) external {
+    function claimTokens(
+        address token,
+        address who,
+        address dest,
+        uint256 amount
+    ) external {
         require(msg.sender == _DODO_PROXY_, "DODOApprove:Access restricted");
         if (amount > 0) {
             IERC20(token).safeTransferFrom(who, dest, amount);

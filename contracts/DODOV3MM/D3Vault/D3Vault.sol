@@ -150,7 +150,12 @@ contract D3Vault is D3VaultFunding, D3VaultLiquidation {
         uint256 maxCollateral,
         uint256 collateralWeight,
         uint256 debtWeight,
-        uint256 reserveFactor
+        uint256 reserveFactor,
+        // uint256 baseInterest,
+        // uint256 lowInterestRate,
+        // uint256 highInterestRate,
+        // uint256 lowPrice,
+        // uint256 highPrice,
     ) external onlyOwner {
         if (tokens[token]) revert Errors.D3VaultTokenAlreadyExist();
         if (collateralWeight >= 1e18 || debtWeight <= 1e18) revert Errors.D3VaultWrongWeight();
@@ -167,6 +172,11 @@ contract D3Vault is D3VaultFunding, D3VaultLiquidation {
         info.maxCollateralAmount = maxCollateral;
         info.collateralWeight = collateralWeight;
         info.debtWeight = debtWeight;
+        // info.baseInterest = baseInterest;
+        // info.lowInterestRate = lowInterestRate;
+        // info.highInterestRate = highInterestRate;
+        // info.lowPrice = lowPrice;
+        // info.highPrice = highPrice;
         emit AddToken(token);
     }
 
@@ -194,6 +204,24 @@ contract D3Vault is D3VaultFunding, D3VaultLiquidation {
         info.debtWeight = debtWeight;
         info.reserveFactor = reserveFactor;
         emit SetToken(token);
+    }
+
+    function setTokenShark(
+        address token,
+        uint256 baseInterest,
+        uint256 lowInterestRate,
+        uint256 highInterestRate,
+        uint256 lowPrice,
+        uint256 highPrice
+    ) external onlyOwner {
+        if (!tokens[token]) revert Errors.D3VaultTokenNotExist();
+        AssetInfo storage info = assetInfo[token];
+        info.baseInterest = baseInterest;
+        info.lowInterestRate = lowInterestRate;
+        info.highInterestRate = highInterestRate;
+        info.lowPrice = lowPrice;
+        info.highPrice = highPrice;
+        emit SetTokenShark(token);
     }
 
     function withdrawReserves(address token, uint256 amount) external nonReentrant allowedToken(token) onlyOwner {
@@ -236,7 +264,13 @@ contract D3Vault is D3VaultFunding, D3VaultLiquidation {
             uint256 collateralWeight,
             uint256 debtWeight,
             uint256 withdrawnReserves,
-            uint256 balance
+            uint256 balance,
+            uint256 baseInterest,
+            uint256 lowInterestRate,
+            uint256 highInterestRate,
+            uint256 lowPrice,
+            uint256 highPrice
+
         )
     {
         AssetInfo storage info = assetInfo[token];

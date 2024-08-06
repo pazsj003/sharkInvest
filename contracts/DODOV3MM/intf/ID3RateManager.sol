@@ -8,5 +8,8 @@
 pragma solidity 0.8.16;
 
 interface ID3RateManager {
-    function getBorrowRate(address token, uint256 utilizationRatio) external view returns (uint256);
+    function getBorrowRate(
+        address token,
+        uint256 utilizationRatio
+    ) external view returns (uint256);
 }

@@ -11,11 +11,18 @@ import "../lib/Types.sol";
 
 interface ID3Maker {
     function init(address, address, uint256) external;
-    function getTokenMMInfoForPool(address token)
+    function getTokenMMInfoForPool(
+        address token
+    )
         external
         view
         returns (Types.TokenMMInfo memory tokenMMInfo, uint256 tokenIndex);
     function checkHeartbeat() external view returns (bool);
-    function getOneTokenOriginIndex(address token) external view returns (int256);
-    function getPoolTokenListFromMaker() external view returns(address[] memory tokenlist);
+    function getOneTokenOriginIndex(
+        address token
+    ) external view returns (int256);
+    function getPoolTokenListFromMaker()
+        external
+        view
+        returns (address[] memory tokenlist);
 }

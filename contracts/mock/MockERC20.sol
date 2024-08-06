@@ -11,7 +11,11 @@ contract MockERC20 {
     mapping(address => mapping(address => uint256)) internal allowed;
 
     event Transfer(address indexed from, address indexed to, uint256 amount);
-    event Approval(address indexed owner, address indexed spender, uint256 amount);
+    event Approval(
+        address indexed owner,
+        address indexed spender,
+        uint256 amount
+    );
 
     constructor(string memory _name, string memory _symbol, uint8 _decimals) {
         name = _name;
@@ -33,7 +37,11 @@ contract MockERC20 {
         return balances[owner];
     }
 
-    function transferFrom(address from, address to, uint256 amount) public returns (bool) {
+    function transferFrom(
+        address from,
+        address to,
+        uint256 amount
+    ) public returns (bool) {
         require(to != address(0), "TO_ADDRESS_IS_EMPTY");
         require(amount <= balances[from], "BALANCE_NOT_ENOUGH");
         require(amount <= allowed[from][msg.sender], "ALLOWANCE_NOT_ENOUGH");
@@ -51,7 +59,10 @@ contract MockERC20 {
         return true;
     }
 
-    function allowance(address owner, address spender) public view returns (uint256) {
+    function allowance(
+        address owner,
+        address spender
+    ) public view returns (uint256) {
         return allowed[owner][spender];
     }
 

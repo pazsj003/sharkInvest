@@ -42,7 +42,10 @@ contract D3Token is InitializableOwnable, ERC20("DODOV3 Token", "D3Token") {
     /// @dev Transfer token for a specified address
     /// @param to The address to transfer to.
     /// @param amount The amount to be transferred.
-    function transfer(address to, uint256 amount) public override returns (bool) {
+    function transfer(
+        address to,
+        uint256 amount
+    ) public override returns (bool) {
         address owner = _msgSender();
         require(amount <= balanceOf(owner), "BALANCE_NOT_ENOUGH");
         _transfer(owner, to, amount);
@@ -53,7 +56,11 @@ contract D3Token is InitializableOwnable, ERC20("DODOV3 Token", "D3Token") {
     /// @param from address The address which you want to send tokens from
     /// @param to address The address which you want to transfer to
     /// @param amount uint256 the amount of tokens to be transferred
-    function transferFrom(address from, address to, uint256 amount) public override returns (bool) {
+    function transferFrom(
+        address from,
+        address to,
+        uint256 amount
+    ) public override returns (bool) {
         require(amount <= balanceOf(from), "BALANCE_NOT_ENOUGH");
         address spender = _msgSender();
         _spendAllowance(from, spender, amount);
@@ -74,7 +81,9 @@ contract D3Token is InitializableOwnable, ERC20("DODOV3 Token", "D3Token") {
     }
 
     /// @notice Convert the address to a shorter string
-    function addressToShortString(address _addr) public pure returns (string memory) {
+    function addressToShortString(
+        address _addr
+    ) public pure returns (string memory) {
         bytes32 value = bytes32(uint256(uint160(_addr)));
         bytes memory alphabet = "0123456789abcdef";
 

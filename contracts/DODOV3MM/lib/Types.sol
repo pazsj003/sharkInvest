@@ -51,11 +51,14 @@ library Types {
         TokenMMInfo toTokenMMInfo;
     }
 
-    function parseRealAmount(uint256 realAmount, uint256 tokenDec) internal pure returns(uint256 amountWithDec18) {
-        if(tokenDec < 18) {
+    function parseRealAmount(
+        uint256 realAmount,
+        uint256 tokenDec
+    ) internal pure returns (uint256 amountWithDec18) {
+        if (tokenDec < 18) {
             uint256 fixDec = 18 - tokenDec;
             amountWithDec18 = realAmount * (10 ** fixDec);
-        } else if(tokenDec == 18) {
+        } else if (tokenDec == 18) {
             amountWithDec18 = realAmount;
         } else {
             uint256 fixDec = tokenDec - 18;
@@ -63,11 +66,14 @@ library Types {
         }
     }
 
-    function parseDec18Amount(uint256 amountWithDec18, uint256 tokenDec) internal pure returns(uint256 realAmount) {
-        if(tokenDec < 18) {
+    function parseDec18Amount(
+        uint256 amountWithDec18,
+        uint256 tokenDec
+    ) internal pure returns (uint256 realAmount) {
+        if (tokenDec < 18) {
             uint256 fixDec = 18 - tokenDec;
             realAmount = amountWithDec18 / (10 ** fixDec);
-        } else if(tokenDec == 18) {
+        } else if (tokenDec == 18) {
             realAmount = amountWithDec18;
         } else {
             uint256 fixDec = tokenDec - 18;

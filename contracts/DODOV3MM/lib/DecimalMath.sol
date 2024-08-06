@@ -16,26 +16,38 @@ library DecimalMath {
     uint256 internal constant ONE2 = 10 ** 36;
 
     function mul(uint256 target, uint256 d) internal pure returns (uint256) {
-        return target * d / (10 ** 18);
+        return (target * d) / (10 ** 18);
     }
 
-    function mulFloor(uint256 target, uint256 d) internal pure returns (uint256) {
-        return target * d / (10 ** 18);
+    function mulFloor(
+        uint256 target,
+        uint256 d
+    ) internal pure returns (uint256) {
+        return (target * d) / (10 ** 18);
     }
 
-    function mulCeil(uint256 target, uint256 d) internal pure returns (uint256) {
+    function mulCeil(
+        uint256 target,
+        uint256 d
+    ) internal pure returns (uint256) {
         return _divCeil(target * d, 10 ** 18);
     }
 
     function div(uint256 target, uint256 d) internal pure returns (uint256) {
-        return target * (10 ** 18) / d;
+        return (target * (10 ** 18)) / d;
     }
 
-    function divFloor(uint256 target, uint256 d) internal pure returns (uint256) {
-        return target * (10 ** 18) / d;
+    function divFloor(
+        uint256 target,
+        uint256 d
+    ) internal pure returns (uint256) {
+        return (target * (10 ** 18)) / d;
     }
 
-    function divCeil(uint256 target, uint256 d) internal pure returns (uint256) {
+    function divCeil(
+        uint256 target,
+        uint256 d
+    ) internal pure returns (uint256) {
         return _divCeil(target * (10 ** 18), d);
     }
 
@@ -51,16 +63,19 @@ library DecimalMath {
         return Math.sqrt(target * ONE);
     }
 
-    function powFloor(uint256 target, uint256 e) internal pure returns (uint256) {
+    function powFloor(
+        uint256 target,
+        uint256 e
+    ) internal pure returns (uint256) {
         if (e == 0) {
             return 10 ** 18;
         } else if (e == 1) {
             return target;
         } else {
             uint256 p = powFloor(target, e / 2);
-            p = p * p / (10 ** 18);
+            p = (p * p) / (10 ** 18);
             if (e % 2 == 1) {
-                p = p * target / (10 ** 18);
+                p = (p * target) / (10 ** 18);
             }
             return p;
         }

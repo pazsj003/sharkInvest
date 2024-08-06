@@ -5,7 +5,7 @@ const OP_CONFIG = {
     WBTC: "0x68f180fcCe6836688e9084f035309E29Bf0A2095", // decimals 8
     WETH: "0x4200000000000000000000000000000000000006",
     USDT: "0x94b008aA00579c1307B0EF2c499aD98a8ce58e58", // decimals 6
-  }, 
+  },
   deployedAddress: {
     D3Oracle: "0xf5Ec1a19e1570bDf0A3AaA6585274f27027270b1",
     D3RateManager: "0x1506b54A1c0eA1B2F4a84866Ec5776F7F6e7f0B1",
@@ -21,7 +21,7 @@ const OP_CONFIG = {
     Maintainer: "0x677dD94031b3263Bd0E27ef5093C69A1a3037a00",
     D3MMFactory: "0x6de4d882a84A98f4CCD5D33ea6b3C99A07BAbeB1",
     D3Proxy: "0xCb3dC90E800C961d4a206BeAAFd92A6d2E06495e", // don't forget to add this to DODOApproveProxy
-    D3MM: "", 
+    D3MM: "",
   },
   chainlinkPriceFeed: {
     BTC_USD: "0xD702DD976Fb76Fffc2D3963D037dfDae5b04E593",

@@ -146,8 +146,8 @@ contract D3Proxy is IDODOSwapCallback {
     function d3MMSwapCallBack(address token, uint256 value, bytes calldata _data) external override {
         require(ID3Vault(_D3_VAULT_).allPoolAddrMap(msg.sender), "D3PROXY_CALLBACK_INVALID");
         SwapCallbackData memory decodeData;
-        decodeData = abi.decode(_data, (SwapCallbackData));
-        _deposit(decodeData.payer, msg.sender, token, value);
+        decodeData = abi.decode(_data, (SwapCallbackData));//括号用于表示类型列表，即使只有一个类型也需要用括号括起来，以满足函数的语法要求。
+        _deposit(decodeData.payer, msg.sender, token, value);//转给d3trading.sol 合约来swap,msg.sender 合约就是那个合约
     }
 
     /// @notice LP deposit token into pool
@@ -165,6 +165,11 @@ contract D3Proxy is IDODOSwapCallback {
             dTokenAmount = ID3Vault(_D3_VAULT_).userDeposit(user, token);
         }
         require(dTokenAmount >= minDtokenAmount, "D3PROXY_MIN_DTOKEN_AMOUNT_FAIL");
+    }
+
+    function userSharkDeposit(address user, address token, uint256 amount,)external payable {
+
+        
     }
 
     function userWithdraw(address to, address token, uint256 dTokenAmount, uint256 minReceiveAmount) external payable returns(uint256 amount){
@@ -251,4 +256,8 @@ contract D3Proxy is IDODOSwapCallback {
         (bool success,) = to.call{value: value}(new bytes(0));
         require(success, "D3PROXY_ETH_TRANSFER_FAIL");
     }
+
+    // 确定deposit 是最优解，每隔一段时间检查call 一下这个方程，直到不合适就取回
+    // deposit之前先确定 那些token list 再最低处， 如果在最低处利息高，就deposit 这个， 然后隔一段时间检查
+    // 心跳，或者检查
 }

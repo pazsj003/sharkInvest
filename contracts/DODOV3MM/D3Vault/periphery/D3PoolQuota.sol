@@ -17,7 +17,11 @@ contract D3PoolQuota is Ownable {
     /// @param token The token address
     /// @param pools The list of pool addresses
     /// @param quotas The list of quota corresponding to the pool list
-    function setPoolQuota(address token, address[] calldata pools, uint256[] calldata quotas) external onlyOwner {
+    function setPoolQuota(
+        address token,
+        address[] calldata pools,
+        uint256[] calldata quotas
+    ) external onlyOwner {
         require(pools.length == quotas.length, "PARAMS_LENGTH_NOT_MATCH");
         for (uint256 i = 0; i < pools.length; i++) {
             poolQuota[token][pools[i]] = quotas[i];
@@ -41,7 +45,10 @@ contract D3PoolQuota is Ownable {
     }
 
     /// @notice Get the pool quota for a token
-    function getPoolQuota(address pool, address token) external view returns (uint256) {
+    function getPoolQuota(
+        address pool,
+        address token
+    ) external view returns (uint256) {
         if (isUsingQuota[token]) {
             if (hasDefaultQuota[token]) {
                 return defaultQuota[token];

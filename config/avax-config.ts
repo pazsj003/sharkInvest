@@ -9,7 +9,7 @@ const AVAX_CONFIG = {
     USDT: "0x9702230A8Ea53601f5cD2dc00fDBc13d4dF4A8c7", // decimals 6
     USDTe: "0xc7198437980c041c805A1EDcbA50c1Ce5db95118", // decimals 6, avax bridge
     USDC: "0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E", // decimals 6
-  }, 
+  },
   deployedAddress: {
     D3Oracle: "0xB5c7BA1EAde74800cD6cf5F56b1c4562De373780",
     D3RateManager: "0x62bd398b79Af8531FDfCF0a19e6027aB9048dA8C",
@@ -25,7 +25,7 @@ const AVAX_CONFIG = {
     D3FeeRateModel: "0x297da061D1dE0132D241Fafed224288B34d81005",
     D3MMFactory: "0xFaFC924BF0F70BdF4a722231622f559b94e53902",
     D3Proxy: "0xa71415675F68f29259ddD63215E5518d2735bf0a", // don't forget to add this to DODOApproveProxy
-    D3MM: "", 
+    D3MM: "",
   },
   chainlinkPriceFeed: {
     AVAX_USD: "0x0A77230d17318075983913bC2145DB16C7366156",

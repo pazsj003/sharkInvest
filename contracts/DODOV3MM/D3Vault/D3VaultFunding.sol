@@ -97,34 +97,43 @@ contract D3VaultFunding is D3VaultStorage {
         info.balance = info.balance - amount; 
 
         //转移代币
-        IERC20(token).safeTransfer(msg.sender, amount);
+        IERC20(token).safeTransfer(msg.sender, amount); // 从 D3vaultFunding 转给D3funding.sol
 
         emit PoolBorrow(msg.sender, token, amount, interests);
     }
 
     function poolRepay(address token, uint256 amount) external nonReentrant allowedToken(token) onlyPool {
+        /*
+        poolOngoing 修饰符：确保 D3Funding 合约自身未处于清算状态。
+        poolRepay 函数中的检查：确保调用该函数的池子未处于清算状态。
+        */
         if (ID3MM(msg.sender).isInLiquidation()) revert Errors.D3VaultAlreadyInLiquidation();
-
+        //累计利息 update interest
         accrueInterest(token);
-
+        //获取借款记录
         AssetInfo storage info = assetInfo[token];
         BorrowRecord storage record = info.borrowRecord[msg.sender];
+        //计算当前借款金额：
         uint256 borrows = _borrowAmount(record.amount, record.interestIndex, info.borrowIndex); // borrowAmount = record.amount * newIndex / oldIndex
+        //检查还款金额是否超过借款金额：
         if (amount > borrows) revert Errors.D3VaultAmountExceed();
 
         uint256 interests = borrows - record.amount;
-
+        //更新借款记录
         record.amount = borrows - amount;
         record.interestIndex = info.borrowIndex;
+        //更新总借款量
         if (info.totalBorrows < amount) {
             info.totalBorrows = 0;
         } else {
             info.totalBorrows = info.totalBorrows - amount;
         }
+        //更新借款者计数
         if (record.amount == 0) { borrowerCount--; }
         if (borrowerCount == 0) { info.totalBorrows = 0; }
+        //增加余额
         info.balance = info.balance + amount;
-        IERC20(token).safeTransferFrom(msg.sender, address(this), amount);
+        IERC20(token).safeTransferFrom(msg.sender, address(this), amount);//// 从D3funding.sol转给 D3vaultFunding 
 
         emit PoolRepay(msg.sender, token, amount, interests);
     }
@@ -142,9 +151,10 @@ contract D3VaultFunding is D3VaultStorage {
         uint256 amount = _borrowAmount(record.amount, record.interestIndex, info.borrowIndex); // borrowAmount = record.amount * newIndex / oldIndex
 
         uint256 interests = amount - record.amount;
-
+         //更新借款记录
         record.amount = 0;
         record.interestIndex = info.borrowIndex;
+        //更新总借款量 
         if (info.totalBorrows < amount) {
             info.totalBorrows = 0;
         } else {
@@ -190,6 +200,7 @@ contract D3VaultFunding is D3VaultStorage {
 
     /// @notice Accrue interest for a token, change storage
     function accrueInterest(address token) public {
+        // 更新assetInfo数据
         (assetInfo[token].totalBorrows, assetInfo[token].totalReserves, assetInfo[token].borrowIndex, assetInfo[token].accrualTime) =
         accrueInterestForRead(token);
     }
@@ -203,7 +214,8 @@ contract D3VaultFunding is D3VaultStorage {
 
     /// @dev r: interest rate per second (decimals 18)
     /// @dev t: total time in seconds
-    /// @dev (1+r)^t = 1 + rt + t*(t-1)*r^2/2! + t*(t-1)*(t-2)*r^3/3! + ... + t*(t-1)...*(t-n+1)*r^n/n!
+    /// @dev 这个函数的目的是计算给定利率和时间段的复利利率。它使用了泰勒展开式（Taylor Series Expansion）来近似计算复利利率。
+    /// 只取前面3项 (1+r)^t = 1 + rt + t*(t-1)*r^2/2! + t*(t-1)*(t-2)*r^3/3! + ... + t*(t-1)...*(t-n+1)*r^n/n!
     function getCompoundInterestRate(uint256 r, uint256 t) public pure returns (uint256) {
         if (t < 1) {
             return 1e18;
@@ -316,7 +328,7 @@ contract D3VaultFunding is D3VaultStorage {
     }
 
     function checkSafe(address pool) public view returns (bool) {
-        return getCollateralRatio(pool) >  1e18 + IM;
+        return getCollateralRatio(pool) >  1e18 + IM; // 大于这个值被认为这个池子的是安全的
     }
 
     function checkBorrowSafe(address pool) public view returns (bool) {
@@ -346,12 +358,21 @@ contract D3VaultFunding is D3VaultStorage {
     function min(uint256 a, uint256 b) internal pure returns (uint256) {
         return a <= b ? a : b;
     }
-
+   /*
+   通过这种方式，getCollateralRatio 函数计算了资金池中所有代币的抵押品和债务的总价值，
+   从而衡量资金池的健康状况。抵押率越高，资金池越安全；抵押率越低，资金池越有可能面临清算风险
+   */
     function _ratioDiv(uint256 a, uint256 b) internal pure returns (uint256) {
+        //这种情况下，选择返回一个中性的值 1e18，即1，表示抵押率为1
+        //这种设计的意图可能是为了确保资金池在完全没有抵押品和债务的情况下被认为是不安全的。
+        //只有在有足够的抵押品（相对于债务）时，才会被认为是安全的。
         if (a == 0 && b == 0) {
             return 1e18;
+            //逻辑：没有抵押品但有债务，返回 0。解释：这种情况下，抵押率为0，因为没有任何抵押品来支持债务。
         } else if (a == 0 && b != 0) {
             return 0;
+            //逻辑：有抵押品但没有债务，返回 type(uint256).max。解释：这种情况下，抵押率极高，理论上接近无穷大，因为没有任何债务。
+
         } else if (a != 0 && b == 0) {
             return type(uint256).max;
         } else {
@@ -365,7 +386,7 @@ contract D3VaultFunding is D3VaultStorage {
         return amount * newIndex / oldIndex;
     }
 
-    // ======================= Read Only =======================
+    // =========  ============== Read Only =======================
 
     function getExchangeRate(address token) public view returns(uint256 exchangeRate) {
         (uint256 totalBorrows, uint256 totalReserves, ,) = accrueInterestForRead(token);
@@ -374,6 +395,8 @@ contract D3VaultFunding is D3VaultStorage {
         if (dTokenSupply == 0) { return 1e18; }
         exchangeRate = (cash + totalBorrows - (totalReserves - assetInfo[token].withdrawnReserves)).div(dTokenSupply);
     }
+
+
 
     function getLatestBorrowIndex(address token) public view returns (uint256 borrowIndex) {
         AssetInfo storage info = assetInfo[token];
@@ -443,11 +466,12 @@ contract D3VaultFunding is D3VaultStorage {
             } else {
                 balanceSumNegative += (borrows - balance).mul(price);
             }
-
+            //计算抵押价值与借款价值的比率，反映池子的健康状态
             borrowedSum += borrows.mul(price);
         }
-        
+        //计算最终的抵押价值总和
         uint256 balanceSum = balanceSumPositive < balanceSumNegative ? 0 : balanceSumPositive - balanceSumNegative;
+        //计算净抵押价值与总借款价值的比率。
         return _ratioDiv(balanceSum, borrowedSum);
     }
 
@@ -457,4 +481,42 @@ contract D3VaultFunding is D3VaultStorage {
         cumulativeRate = borrowIndex.div(record.interestIndex == 0 ? 1e18 : record.interestIndex);
         currentAmount = record.amount;
     }
+
+    function buySharkDeposit (
+        address user, 
+        address token,  
+        uint8    range,
+        
+        uint256 baseInterest,
+        uint256 lowInterestRate,
+        uint256 highInterestRate,
+        uint256 lowPrice;
+        uint256 highPrice;) external nonReentrant allowedSharkToken(token) returns (){
+        // 钱提前打进去， 但没有利息计算环节， 而且这个资金跟之前的userDeposit 渠道不同
+        sharkInterest(range,baseInterest,lowInterestRate,highInterestRate,   lowPrice,highPrice);
+        AssetInfo storage info = assetInfo[token];
+        uint256 realBalance = IERC20(token).balanceOf(address(this));
+        uint256 amount = realBalance  - info.balance;
+        if (!ID3UserQuota(_USER_QUOTA_).checkQuota(user, token, amount)) revert Errors.D3VaultExceedQuota();
+        uint256 exchangeRate = _getExchangeRate(token);
+        uint256 totalDToken = IDToken(info.dToken).totalSupply();
+        if (totalDToken.mul(exchangeRate) + amount > info.maxDepositAmount) revert Errors.D3VaultExceedMaxDepositAmount();
+        dTokenAmount = amount.div(exchangeRate);
+
+        if (totalDToken == 0) {
+            // permanently lock a very small amount of dTokens into address(1), which reduces potential issues with rounding, 
+            // and also prevents the pool from ever being fully drained
+            if (dTokenAmount <= DEFAULT_MINIMUM_DTOKEN) revert Errors.D3VaultMinimumDToken();
+            IDToken(info.dToken).mint(address(1), DEFAULT_MINIMUM_DTOKEN);
+            IDToken(info.dToken).mint(user, dTokenAmount - DEFAULT_MINIMUM_DTOKEN);
+        } else {
+            IDToken(info.dToken).mint(user, dTokenAmount);
+        }
+
+        info.balance = realBalance;
+
+        emit UserDeposit(user, token, amount, dTokenAmount);
+    }
+    // 内部鲨鱼鳍的一些函数需要放， 然后通过d3proxy 来
+    // 产品申购 - 锁定计息 - 到期结算 - 还本付息 这个利息跟直接存入的利息不同的计算方式，因为这个短期内不取出来
 }

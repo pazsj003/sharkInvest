@@ -7,7 +7,7 @@ const BSC_CONFIG = {
     BTCB: "0x7130d2A12B9BCbFAe4f2634d864A1Ee1Ce3Ead9c", // decimals 18
     ETH: "0x2170Ed0880ac9A755fd29B2688956BD959F933F8",
     USDT: "0x55d398326f99059fF775485246999027B3197955", // decimals 18
-  }, 
+  },
   deployedAddress: {
     D3Oracle: "0x829Ea84E6bfc67821971C0E1B55981efcE6A7550",
     D3RateManager: "0x6486c9fBBA47b94015f8A21EFB23Ca6c758980f8",
@@ -23,7 +23,7 @@ const BSC_CONFIG = {
     D3FeeRateModel: "0x9dd1f47AA6B8E3C035bFd065Ab74b944863BD0b1",
     D3MMFactory: "0xB0E85b1976EF092BcDC02bbB93626756FaBaa571",
     D3Proxy: "0x8fb36F4CF67EF12Cc0b63CF951ca0b4f9a8F1953", // don't forget to add this to DODOApproveProxy
-    D3MM: "", 
+    D3MM: "",
   },
   chainlinkPriceFeed: {
     BTC_USD: "0x264990fbd0A4796A3E3d8E37C4d5F87a3aCa5Ebf",

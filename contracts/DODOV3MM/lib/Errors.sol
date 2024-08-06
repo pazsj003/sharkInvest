@@ -21,21 +21,25 @@ library Errors {
 
     // =============== d3 maker =========================
     string public constant K_LIMIT = "D3MAKER_K_LIMIT_ERROR";
-    string public constant PRICE_UP_BELOW_PRICE_DOWN = "D3MAKER_PRICE_UP_BELOW_PRICE_DOWN";
+    string public constant PRICE_UP_BELOW_PRICE_DOWN =
+        "D3MAKER_PRICE_UP_BELOW_PRICE_DOWN";
     string public constant HAVE_SET_TOKEN_INFO = "D3MAKER_HAVE_SET_TOKEN_INFO";
     string public constant K_LENGTH_NOT_MATCH = "D3MAKER_K_LENGTH_NOT_MATCH";
-    string public constant AMOUNTS_LENGTH_NOT_MATCH = "D3MAKER_AMOUNTS_LENGTH_NOT_MATCH";
-    string public constant PRICES_LENGTH_NOT_MATCH = "D3MAKER_PRICES_LENGTH_NOT_MATCH";
-    string public constant PRICE_SLOT_LENGTH_NOT_MATCH = "D3MAKER_PRICE_SLOT_LENGTH_NOT_MATCH";
+    string public constant AMOUNTS_LENGTH_NOT_MATCH =
+        "D3MAKER_AMOUNTS_LENGTH_NOT_MATCH";
+    string public constant PRICES_LENGTH_NOT_MATCH =
+        "D3MAKER_PRICES_LENGTH_NOT_MATCH";
+    string public constant PRICE_SLOT_LENGTH_NOT_MATCH =
+        "D3MAKER_PRICE_SLOT_LENGTH_NOT_MATCH";
     string public constant INVALID_TOKEN = "D3MAKER_INVALID_TOKEN";
 
     // =============== pmmRangeOrder ====================
-    string public constant RO_ORACLE_PROTECTION = "PMMRO_ORACLE_PRICE_PROTECTION";
+    string public constant RO_ORACLE_PROTECTION =
+        "PMMRO_ORACLE_PRICE_PROTECTION";
     string public constant RO_VAULT_RESERVE = "PMMRO_VAULT_RESERVE_NOT_ENOUGH";
     string public constant RO_AMOUNT_ZERO = "PMMRO_AMOUNT_ZERO";
     string public constant RO_PRICE_ZERO = "PMMRO_PRICE_ZERO";
-    string public constant RO_PRICE_DIFF_TOO_SMALL = "PMMRO_PRICE_DIFF_TOO_SMALL";
+    string public constant RO_PRICE_DIFF_TOO_SMALL =
+        "PMMRO_PRICE_DIFF_TOO_SMALL";
     string public constant RO_BID_AMOUNT = "PMMRO_BIDAMOUNT_NOT_ENOUGH";
-
-    
 }

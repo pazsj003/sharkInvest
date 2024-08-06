@@ -7,10 +7,10 @@ import "../lib/InitializableOwnable.sol";
 import "../lib/Errors.sol";
 import {ID3MM} from "../intf/ID3MM.sol";
 
-/// @notice D3Maker is a dependent price controll model. Maker could set token price and other price 
-/// parameters to control swap. The key part is MakerState(in D3Maker) and flag(in D3MM) parameter. MakerState 
+/// @notice D3Maker is a dependent price controll model. Maker could set token price and other price
+/// parameters to control swap. The key part is MakerState(in D3Maker) and flag(in D3MM) parameter. MakerState
 /// contains token price, amount and swap fee. Specially for token price, which is supposed to be set frequently,
-/// we use one slot to compress 3 token price with dependent price array. Flags in D3MM decide whether this token's 
+/// we use one slot to compress 3 token price with dependent price array. Flags in D3MM decide whether this token's
 /// cumulative volumn change, which means resetting integral start point. Every function should reset cumulative
 /// volumn.
 /// @dev maker could not delete token function
@@ -33,7 +33,9 @@ contract D3Maker is InitializableOwnable {
     }
 
     // ============= Read for tokenMMInfo =================
-    function getTokenMMInfoForPool(address token)
+    function getTokenMMInfoForPool(
+        address token
+    )
         external
         view
         returns (Types.TokenMMInfo memory tokenMMInfo, uint256 tokenIndex)
@@ -66,21 +68,40 @@ contract D3Maker is InitializableOwnable {
     // ================== Read parameters ==============
 
     /// @notice give one token's address, give back token's priceInfo
-    function getOneTokenPriceSet(address token) public view returns (uint80 priceSet) {
-        require(state.priceListInfo.tokenIndexMap[token] > 0, Errors.INVALID_TOKEN);
+    function getOneTokenPriceSet(
+        address token
+    ) public view returns (uint80 priceSet) {
+        require(
+            state.priceListInfo.tokenIndexMap[token] > 0,
+            Errors.INVALID_TOKEN
+        );
         uint256 tokenOriIndex = state.priceListInfo.tokenIndexMap[token] - 1;
         uint256 tokenIndex = (tokenOriIndex / 2);
-        uint256 tokenIndexInnerSlot = tokenIndex % MakerTypes.PRICE_QUANTITY_IN_ONE_SLOT;
+        uint256 tokenIndexInnerSlot = tokenIndex %
+            MakerTypes.PRICE_QUANTITY_IN_ONE_SLOT;
 
-        uint256 curAllPrices = tokenOriIndex % 2 == 1
-            ? state.priceListInfo.tokenPriceNS[tokenIndex / MakerTypes.PRICE_QUANTITY_IN_ONE_SLOT]
-            : state.priceListInfo.tokenPriceStable[tokenIndex / MakerTypes.PRICE_QUANTITY_IN_ONE_SLOT];
-        curAllPrices = curAllPrices >> (MakerTypes.ONE_PRICE_BIT * tokenIndexInnerSlot);
-        priceSet = uint80(curAllPrices & ((2 ** (MakerTypes.ONE_PRICE_BIT)) - 1));
+        uint256 curAllPrices = tokenOriIndex % 2 == 1 // 确定奇数还是偶数来确定是稳定版还是非稳定版
+            ? state.priceListInfo.tokenPriceNS[
+                tokenIndex / MakerTypes.PRICE_QUANTITY_IN_ONE_SLOT
+            ]
+            : state.priceListInfo.tokenPriceStable[
+                tokenIndex / MakerTypes.PRICE_QUANTITY_IN_ONE_SLOT
+            ];
+        //把正确的价格放在最低的72位上， 把正确的位数往右移动innerslot 位到最低位
+        curAllPrices =
+            curAllPrices >>
+            (MakerTypes.ONE_PRICE_BIT * tokenIndexInnerSlot);
+        //(2 ** 72) - 1 = 0xFFFFFFFFFFFFFFFFFFFF（十六进制）除了最低72位以外其他都要 &，
+        // 保留最低72位正确的价格
+        priceSet = uint80(
+            curAllPrices & ((2 ** (MakerTypes.ONE_PRICE_BIT)) - 1)
+        );
     }
 
     /// @notice get one token index. odd for none-stable, even for stable,  true index = (tokenIndex[address] - 1) / 2
-    function getOneTokenOriginIndex(address token) public view returns (int256) {
+    function getOneTokenOriginIndex(
+        address token
+    ) public view returns (int256) {
         //require(state.priceListInfo.tokenIndexMap[token] > 0, Errors.INVALID_TOKEN);
         return int256(state.priceListInfo.tokenIndexMap[token]) - 1;
     }
@@ -91,7 +112,11 @@ contract D3Maker is InitializableOwnable {
     function getStableTokenInfo()
         external
         view
-        returns (uint256 numberOfStable, uint256[] memory tokenPriceStable, uint256 curFlag)
+        returns (
+            uint256 numberOfStable,
+            uint256[] memory tokenPriceStable,
+            uint256 curFlag
+        )
     {
         numberOfStable = state.priceListInfo.numberOfStable;
         tokenPriceStable = state.priceListInfo.tokenPriceStable;
@@ -101,7 +126,11 @@ contract D3Maker is InitializableOwnable {
     /// @notice get all non-stable token Info
     /// @return number stable tokens' quantity
     /// @return tokenPrices stable tokens' price slot array. each data contains up to 3 token prices
-    function getNSTokenInfo() external view returns (uint256 number, uint256[] memory tokenPrices, uint256 curFlag) {
+    function getNSTokenInfo()
+        external
+        view
+        returns (uint256 number, uint256[] memory tokenPrices, uint256 curFlag)
+    {
         number = state.priceListInfo.numberOfNS;
         tokenPrices = state.priceListInfo.tokenPriceNS;
         curFlag = ID3MM(_POOL_).allFlag();
@@ -116,31 +145,47 @@ contract D3Maker is InitializableOwnable {
         uint256 slotInnerIndex,
         uint256 priceSet
     ) public pure returns (uint256 newPriceSlot) {
-        uint256 leftPriceSet = priceSlot >> ((slotInnerIndex + 1) * MakerTypes.ONE_PRICE_BIT);
-        uint256 rightPriceSet = priceSlot & ((2 ** (slotInnerIndex * MakerTypes.ONE_PRICE_BIT)) - 1);
-        newPriceSlot = (leftPriceSet << ((slotInnerIndex + 1) * MakerTypes.ONE_PRICE_BIT))
-            + (priceSet << (slotInnerIndex * MakerTypes.ONE_PRICE_BIT)) + rightPriceSet;
+        uint256 leftPriceSet = priceSlot >>
+            ((slotInnerIndex + 1) * MakerTypes.ONE_PRICE_BIT);
+        uint256 rightPriceSet = priceSlot &
+            ((2 ** (slotInnerIndex * MakerTypes.ONE_PRICE_BIT)) - 1);
+        newPriceSlot =
+            (leftPriceSet <<
+                ((slotInnerIndex + 1) * MakerTypes.ONE_PRICE_BIT)) +
+            (priceSet << (slotInnerIndex * MakerTypes.ONE_PRICE_BIT)) +
+            rightPriceSet;
     }
 
     function checkHeartbeat() public view returns (bool) {
-        if (block.timestamp - state.heartBeat.lastHeartBeat <= state.heartBeat.maxInterval) {
+        if (
+            block.timestamp - state.heartBeat.lastHeartBeat <=
+            state.heartBeat.maxInterval
+        ) {
             return true;
         } else {
             return false;
         }
     }
 
-    function getPoolTokenListFromMaker() external view returns(address[] memory tokenlist) {
+    function getPoolTokenListFromMaker()
+        external
+        view
+        returns (address[] memory tokenlist)
+    {
         return poolTokenlist;
     }
 
     // ============= Set params ===========
 
     /// @notice maker could use multicall to set different params in one tx.
-    function multicall(bytes[] calldata data) external returns (bytes[] memory results) {
+    function multicall(
+        bytes[] calldata data
+    ) external returns (bytes[] memory results) {
         results = new bytes[](data.length);
         for (uint256 i = 0; i < data.length; i++) {
-            (bool success, bytes memory result) = address(this).delegatecall(data[i]);
+            (bool success, bytes memory result) = address(this).delegatecall(
+                data[i]
+            );
 
             if (!success) {
                 assembly {
@@ -167,7 +212,10 @@ contract D3Maker is InitializableOwnable {
         uint16 kAsk,
         uint16 kBid
     ) external onlyOwner {
-        require(state.priceListInfo.tokenIndexMap[token] == 0, Errors.HAVE_SET_TOKEN_INFO);
+        require(
+            state.priceListInfo.tokenIndexMap[token] == 0,
+            Errors.HAVE_SET_TOKEN_INFO
+        );
         // check amount
         require(kAsk >= 0 && kAsk <= 10000, Errors.K_LIMIT);
         require(kBid >= 0 && kBid <= 10000, Errors.K_LIMIT);
@@ -185,26 +233,32 @@ contract D3Maker is InitializableOwnable {
         if (stableOrNot) {
             // is stable
             tokenIndex = state.priceListInfo.numberOfStable * 2;
-            uint256 innerSlotIndex = state.priceListInfo.numberOfStable % MakerTypes.PRICE_QUANTITY_IN_ONE_SLOT;
-            uint256 slotIndex = state.priceListInfo.numberOfStable / MakerTypes.PRICE_QUANTITY_IN_ONE_SLOT;
+            uint256 innerSlotIndex = state.priceListInfo.numberOfStable %
+                MakerTypes.PRICE_QUANTITY_IN_ONE_SLOT;
+            uint256 slotIndex = state.priceListInfo.numberOfStable /
+                MakerTypes.PRICE_QUANTITY_IN_ONE_SLOT;
             if (innerSlotIndex == 0) {
                 state.priceListInfo.tokenPriceStable.push(priceSet);
             } else {
-                state.priceListInfo.tokenPriceStable[slotIndex] = (
-                    uint256(priceSet) << (MakerTypes.ONE_PRICE_BIT * innerSlotIndex)
-                ) + state.priceListInfo.tokenPriceStable[slotIndex];
+                state.priceListInfo.tokenPriceStable[slotIndex] =
+                    (uint256(priceSet) <<
+                        (MakerTypes.ONE_PRICE_BIT * innerSlotIndex)) +
+                    state.priceListInfo.tokenPriceStable[slotIndex];
             }
             state.priceListInfo.numberOfStable++;
         } else {
             tokenIndex = state.priceListInfo.numberOfNS * 2 + 1;
-            uint256 innerSlotIndex = state.priceListInfo.numberOfNS % MakerTypes.PRICE_QUANTITY_IN_ONE_SLOT;
-            uint256 slotIndex = state.priceListInfo.numberOfNS / MakerTypes.PRICE_QUANTITY_IN_ONE_SLOT;
+            uint256 innerSlotIndex = state.priceListInfo.numberOfNS %
+                MakerTypes.PRICE_QUANTITY_IN_ONE_SLOT;
+            uint256 slotIndex = state.priceListInfo.numberOfNS /
+                MakerTypes.PRICE_QUANTITY_IN_ONE_SLOT;
             if (innerSlotIndex == 0) {
                 state.priceListInfo.tokenPriceNS.push(priceSet);
             } else {
-                state.priceListInfo.tokenPriceNS[slotIndex] = (
-                    uint256(priceSet) << (MakerTypes.ONE_PRICE_BIT * innerSlotIndex)
-                ) + state.priceListInfo.tokenPriceNS[slotIndex];
+                state.priceListInfo.tokenPriceNS[slotIndex] =
+                    (uint256(priceSet) <<
+                        (MakerTypes.ONE_PRICE_BIT * innerSlotIndex)) +
+                    state.priceListInfo.tokenPriceNS[slotIndex];
             }
             state.priceListInfo.numberOfNS++;
         }
@@ -223,7 +277,10 @@ contract D3Maker is InitializableOwnable {
         address[] calldata tokens,
         uint80[] calldata tokenPrices
     ) external onlyOwner {
-        require(tokens.length == tokenPrices.length, Errors.PRICES_LENGTH_NOT_MATCH);
+        require(
+            tokens.length == tokenPrices.length,
+            Errors.PRICES_LENGTH_NOT_MATCH
+        );
         uint256[] memory haveWrittenToken = new uint256[](tokens.length);
         uint256 curFlag = ID3MM(_POOL_).allFlag();
 
@@ -236,41 +293,63 @@ contract D3Maker is InitializableOwnable {
             //_checkUpAndDownPrice(curTokenPriceSet);
 
             {
-                uint256 tokenIndex = state.priceListInfo.tokenIndexMap[curToken] - 1;
+                uint256 tokenIndex = state.priceListInfo.tokenIndexMap[
+                    curToken
+                ] - 1;
                 curFlag = curFlag & ~(1 << tokenIndex);
             }
 
             // get slot price
-            uint256 curTokenIndex = (state.priceListInfo.tokenIndexMap[curToken] - 1) / 2;
-            uint256 slotIndex = curTokenIndex / MakerTypes.PRICE_QUANTITY_IN_ONE_SLOT;
-            uint256 priceInfoSet = (state.priceListInfo.tokenIndexMap[curToken] - 1) % 2 == 1
+            uint256 curTokenIndex = (state.priceListInfo.tokenIndexMap[
+                curToken
+            ] - 1) / 2;
+            uint256 slotIndex = curTokenIndex /
+                MakerTypes.PRICE_QUANTITY_IN_ONE_SLOT;
+            uint256 priceInfoSet = (state.priceListInfo.tokenIndexMap[
+                curToken
+            ] - 1) %
+                2 ==
+                1
                 ? state.priceListInfo.tokenPriceNS[slotIndex]
                 : state.priceListInfo.tokenPriceStable[slotIndex];
 
             priceInfoSet = stickPrice(
-                priceInfoSet, curTokenIndex % MakerTypes.PRICE_QUANTITY_IN_ONE_SLOT, uint256(curTokenPriceSet)
+                priceInfoSet,
+                curTokenIndex % MakerTypes.PRICE_QUANTITY_IN_ONE_SLOT,
+                uint256(curTokenPriceSet)
             );
 
             // find one slot token
             for (uint256 j = i + 1; j < tokens.length; ++j) {
                 address tokenJ = tokens[j];
-                uint256 tokenJOriIndex = (state.priceListInfo.tokenIndexMap[tokenJ] - 1);
+                uint256 tokenJOriIndex = (state.priceListInfo.tokenIndexMap[
+                    tokenJ
+                ] - 1);
                 if (
-                    haveWrittenToken[j] == 1 // have written
-                        || (state.priceListInfo.tokenIndexMap[curToken] - 1) % 2 != tokenJOriIndex % 2 // not the same stable type
-                        || tokenJOriIndex / 2 / MakerTypes.PRICE_QUANTITY_IN_ONE_SLOT != slotIndex
+                    haveWrittenToken[j] == 1 || // have written
+                    (state.priceListInfo.tokenIndexMap[curToken] - 1) % 2 !=
+                    tokenJOriIndex % 2 || // not the same stable type
+                    tokenJOriIndex /
+                        2 /
+                        MakerTypes.PRICE_QUANTITY_IN_ONE_SLOT !=
+                    slotIndex
                 ) {
                     // not one slot
                     continue;
                 }
                 //_checkUpAndDownPrice(tokenPrices[j]);
                 priceInfoSet = stickPrice(
-                    priceInfoSet, (tokenJOriIndex / 2) % MakerTypes.PRICE_QUANTITY_IN_ONE_SLOT, uint256(tokenPrices[j])
+                    priceInfoSet,
+                    (tokenJOriIndex / 2) %
+                        MakerTypes.PRICE_QUANTITY_IN_ONE_SLOT,
+                    uint256(tokenPrices[j])
                 );
 
                 haveWrittenToken[j] = 1;
                 {
-                    uint256 tokenIndex = state.priceListInfo.tokenIndexMap[tokenJ] - 1;
+                    uint256 tokenIndex = state.priceListInfo.tokenIndexMap[
+                        tokenJ
+                    ] - 1;
                     curFlag = curFlag & ~(1 << tokenIndex);
                 }
             }
@@ -299,7 +378,10 @@ contract D3Maker is InitializableOwnable {
         uint256[] calldata priceSlots,
         uint256 newAllFlag
     ) external onlyOwner {
-        require(slotIndex.length == priceSlots.length, Errors.PRICE_SLOT_LENGTH_NOT_MATCH);
+        require(
+            slotIndex.length == priceSlots.length,
+            Errors.PRICE_SLOT_LENGTH_NOT_MATCH
+        );
         for (uint256 i = 0; i < slotIndex.length; ++i) {
             state.priceListInfo.tokenPriceNS[slotIndex[i]] = priceSlots[i];
         }
@@ -321,7 +403,10 @@ contract D3Maker is InitializableOwnable {
         uint256[] calldata priceSlots,
         uint256 newAllFlag
     ) external onlyOwner {
-        require(slotIndex.length == priceSlots.length, Errors.PRICE_SLOT_LENGTH_NOT_MATCH);
+        require(
+            slotIndex.length == priceSlots.length,
+            Errors.PRICE_SLOT_LENGTH_NOT_MATCH
+        );
         for (uint256 i = 0; i < slotIndex.length; ++i) {
             state.priceListInfo.tokenPriceStable[slotIndex[i]] = priceSlots[i];
         }
@@ -339,7 +424,10 @@ contract D3Maker is InitializableOwnable {
         address[] calldata tokens,
         uint64[] calldata tokenAmounts
     ) external onlyOwner {
-        require(tokens.length == tokenAmounts.length, Errors.AMOUNTS_LENGTH_NOT_MATCH);
+        require(
+            tokens.length == tokenAmounts.length,
+            Errors.AMOUNTS_LENGTH_NOT_MATCH
+        );
         uint256 curFlag = ID3MM(_POOL_).allFlag();
         for (uint256 i = 0; i < tokens.length; ++i) {
             address curToken = tokens[i];
@@ -347,7 +435,9 @@ contract D3Maker is InitializableOwnable {
 
             state.tokenMMInfoMap[curToken].amountInfo = curTokenAmountSet;
             {
-                uint256 tokenIndex = state.priceListInfo.tokenIndexMap[curToken] - 1;
+                uint256 tokenIndex = state.priceListInfo.tokenIndexMap[
+                    curToken
+                ] - 1;
                 curFlag = curFlag & ~(1 << tokenIndex);
             }
         }
@@ -360,7 +450,10 @@ contract D3Maker is InitializableOwnable {
     /// @notice set token Ks
     /// @param tokens token address set
     /// @param tokenKs token k_ask and k_bid, structure like [kAsk(16) | kBid(16)]
-    function setTokensKs(address[] calldata tokens, uint32[] calldata tokenKs) external onlyOwner {
+    function setTokensKs(
+        address[] calldata tokens,
+        uint32[] calldata tokenKs
+    ) external onlyOwner {
         require(tokens.length == tokenKs.length, Errors.K_LENGTH_NOT_MATCH);
         uint256 curFlag = ID3MM(_POOL_).allFlag();
         for (uint256 i = 0; i < tokens.length; ++i) {
@@ -376,7 +469,9 @@ contract D3Maker is InitializableOwnable {
             state.tokenMMInfoMap[curToken].kBid = kBid;
 
             {
-                uint256 tokenIndex = state.priceListInfo.tokenIndexMap[curToken] - 1;
+                uint256 tokenIndex = state.priceListInfo.tokenIndexMap[
+                    curToken
+                ] - 1;
                 curFlag = curFlag & ~(1 << tokenIndex);
             }
         }

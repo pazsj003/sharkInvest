@@ -27,10 +27,16 @@ contract D3Trading is D3Funding {
     )
         external
         view
-        returns (uint256 askDownPrice, uint256 askUpPrice, uint256 bidDownPrice, uint256 bidUpPrice, uint256 swapFee)
+        returns (
+            uint256 askDownPrice,
+            uint256 askUpPrice,
+            uint256 bidDownPrice,
+            uint256 bidUpPrice,
+            uint256 swapFee
+        )
     {
-        (Types.TokenMMInfo memory tokenMMInfo, ) =
-            ID3Maker(state._MAKER_).getTokenMMInfoForPool(token);
+        (Types.TokenMMInfo memory tokenMMInfo, ) = ID3Maker(state._MAKER_)
+            .getTokenMMInfoForPool(token);
 
         askDownPrice = tokenMMInfo.askDownPrice;
         askUpPrice = tokenMMInfo.askUpPrice;
@@ -53,10 +59,15 @@ contract D3Trading is D3Funding {
             uint256 cumulativeBid
         )
     {
-        (Types.TokenMMInfo memory tokenMMInfo, uint256 tokenIndex) =
-            ID3Maker(state._MAKER_).getTokenMMInfoForPool(token);
-        cumulativeAsk = allFlag >> (tokenIndex) & 1 == 0 ? 0 : tokenCumMap[token].cumulativeAsk;
-        cumulativeBid = allFlag >> (tokenIndex) & 1 == 0 ? 0 : tokenCumMap[token].cumulativeBid;
+        (Types.TokenMMInfo memory tokenMMInfo, uint256 tokenIndex) = ID3Maker(
+            state._MAKER_
+        ).getTokenMMInfoForPool(token);
+        cumulativeAsk = (allFlag >> (tokenIndex)) & 1 == 0
+            ? 0
+            : tokenCumMap[token].cumulativeAsk;
+        cumulativeBid = (allFlag >> (tokenIndex)) & 1 == 0
+            ? 0
+            : tokenCumMap[token].cumulativeBid;
 
         bidAmount = tokenMMInfo.bidAmount;
         askAmount = tokenMMInfo.askAmount;
@@ -73,19 +84,31 @@ contract D3Trading is D3Funding {
         roState.oracle = state._ORACLE_;
         uint256 fromTokenIndex;
         uint256 toTokenIndex;
-        (roState.fromTokenMMInfo, fromTokenIndex) = ID3Maker(state._MAKER_).getTokenMMInfoForPool(fromToken);
-        (roState.toTokenMMInfo, toTokenIndex) = ID3Maker(state._MAKER_).getTokenMMInfoForPool(toToken);
+        (roState.fromTokenMMInfo, fromTokenIndex) = ID3Maker(state._MAKER_)
+            .getTokenMMInfoForPool(fromToken);
+        (roState.toTokenMMInfo, toTokenIndex) = ID3Maker(state._MAKER_)
+            .getTokenMMInfoForPool(toToken);
 
         // deal with update flag
 
-        roState.fromTokenMMInfo.cumulativeAsk =
-            allFlag >> (fromTokenIndex) & 1 == 0 ? 0 : tokenCumMap[fromToken].cumulativeAsk;
-        roState.fromTokenMMInfo.cumulativeBid =
-            allFlag >> (fromTokenIndex) & 1 == 0 ? 0 : tokenCumMap[fromToken].cumulativeBid;
-        roState.toTokenMMInfo.cumulativeAsk =
-            allFlag >> (toTokenIndex) & 1 == 0 ? 0 : tokenCumMap[toToken].cumulativeAsk;
-        roState.toTokenMMInfo.cumulativeBid =
-            allFlag >> (toTokenIndex) & 1 == 0 ? 0 : tokenCumMap[toToken].cumulativeBid;
+        roState.fromTokenMMInfo.cumulativeAsk = (allFlag >> (fromTokenIndex)) &
+            1 ==
+            0
+            ? 0
+            : tokenCumMap[fromToken].cumulativeAsk;
+        roState.fromTokenMMInfo.cumulativeBid = (allFlag >> (fromTokenIndex)) &
+            1 ==
+            0
+            ? 0
+            : tokenCumMap[fromToken].cumulativeBid;
+        roState.toTokenMMInfo.cumulativeAsk = (allFlag >> (toTokenIndex)) & 1 ==
+            0
+            ? 0
+            : tokenCumMap[toToken].cumulativeAsk;
+        roState.toTokenMMInfo.cumulativeBid = (allFlag >> (toTokenIndex)) & 1 ==
+            0
+            ? 0
+            : tokenCumMap[toToken].cumulativeBid;
     }
 
     /// @notice user sell a certain amount of fromToken,  get toToken
@@ -97,35 +120,63 @@ contract D3Trading is D3Funding {
         uint256 minReceiveAmount,
         bytes calldata data
     ) external poolOngoing nonReentrant returns (uint256) {
-        require(ID3Maker(state._MAKER_).checkHeartbeat(), Errors.HEARTBEAT_CHECK_FAIL);
+        require(
+            ID3Maker(state._MAKER_).checkHeartbeat(),
+            Errors.HEARTBEAT_CHECK_FAIL
+        );
 
         _updateCumulative(fromToken);
         _updateCumulative(toToken);
 
-        (uint256 payFromAmount, uint256 receiveToAmount, uint256 vusdAmount, uint256 swapFee, uint256 mtFee) =
-            querySellTokens(fromToken, toToken, fromAmount);
+        (
+            uint256 payFromAmount,
+            uint256 receiveToAmount,
+            uint256 vusdAmount,
+            uint256 swapFee,
+            uint256 mtFee
+        ) = querySellTokens(fromToken, toToken, fromAmount);
         require(receiveToAmount >= minReceiveAmount, Errors.MINRES_NOT_ENOUGH);
 
         _transferOut(to, toToken, receiveToAmount);
 
         // external call & swap callback
-        IDODOSwapCallback(msg.sender).d3MMSwapCallBack(fromToken, fromAmount, data);
+        IDODOSwapCallback(msg.sender).d3MMSwapCallBack(
+            fromToken,
+            fromAmount,
+            data
+        );
         // transfer mtFee to maintainer
-        if(mtFee > 0) {
+        if (mtFee > 0) {
             _transferOut(state._MAINTAINER_, toToken, mtFee);
         }
 
         require(
-            IERC20(fromToken).balanceOf(address(this)) - state.balances[fromToken] >= fromAmount,
+            IERC20(fromToken).balanceOf(address(this)) -
+                state.balances[fromToken] >=
+                fromAmount,
             Errors.FROMAMOUNT_NOT_ENOUGH
         );
 
         // record swap
         uint256 toTokenDec = IERC20Metadata(toToken).decimals();
-        _recordSwap(fromToken, toToken, vusdAmount, Types.parseRealAmount(receiveToAmount + swapFee, toTokenDec));
+        _recordSwap(
+            fromToken,
+            toToken,
+            vusdAmount,
+            Types.parseRealAmount(receiveToAmount + swapFee, toTokenDec)
+        );
         require(checkSafe(), Errors.BELOW_IM_RATIO);
 
-        emit Swap(to, fromToken, toToken, payFromAmount, receiveToAmount, swapFee, mtFee, 0);
+        emit Swap(
+            to,
+            fromToken,
+            toToken,
+            payFromAmount,
+            receiveToAmount,
+            swapFee,
+            mtFee,
+            0
+        );
         return receiveToAmount;
     }
 
@@ -138,36 +189,64 @@ contract D3Trading is D3Funding {
         uint256 maxPayAmount,
         bytes calldata data
     ) external poolOngoing nonReentrant returns (uint256) {
-        require(ID3Maker(state._MAKER_).checkHeartbeat(), Errors.HEARTBEAT_CHECK_FAIL);
+        require(
+            ID3Maker(state._MAKER_).checkHeartbeat(),
+            Errors.HEARTBEAT_CHECK_FAIL
+        );
 
         _updateCumulative(fromToken);
         _updateCumulative(toToken);
 
         // query amount and transfer out
-        (uint256 payFromAmount, uint256 receiveToAmount, uint256 vusdAmount, uint256 swapFee, uint256 mtFee) =
-            queryBuyTokens(fromToken, toToken, quoteAmount);
+        (
+            uint256 payFromAmount,
+            uint256 receiveToAmount,
+            uint256 vusdAmount,
+            uint256 swapFee,
+            uint256 mtFee
+        ) = queryBuyTokens(fromToken, toToken, quoteAmount);
         require(payFromAmount <= maxPayAmount, Errors.MAXPAY_NOT_ENOUGH);
 
         _transferOut(to, toToken, receiveToAmount);
 
         // external call & swap callback
-        IDODOSwapCallback(msg.sender).d3MMSwapCallBack(fromToken, payFromAmount, data);
+        IDODOSwapCallback(msg.sender).d3MMSwapCallBack(
+            fromToken,
+            payFromAmount,
+            data
+        );
         // transfer mtFee to maintainer
-        if(mtFee > 0 ) {
+        if (mtFee > 0) {
             _transferOut(state._MAINTAINER_, toToken, mtFee);
         }
 
         require(
-            IERC20(fromToken).balanceOf(address(this)) - state.balances[fromToken] >= payFromAmount,
+            IERC20(fromToken).balanceOf(address(this)) -
+                state.balances[fromToken] >=
+                payFromAmount,
             Errors.FROMAMOUNT_NOT_ENOUGH
         );
 
         // record swap
         uint256 toTokenDec = IERC20Metadata(toToken).decimals();
-        _recordSwap(fromToken, toToken, vusdAmount, Types.parseRealAmount(receiveToAmount + swapFee, toTokenDec));
+        _recordSwap(
+            fromToken,
+            toToken,
+            vusdAmount,
+            Types.parseRealAmount(receiveToAmount + swapFee, toTokenDec)
+        );
         require(checkSafe(), Errors.BELOW_IM_RATIO);
 
-        emit Swap(to, fromToken, toToken, payFromAmount, receiveToAmount, swapFee, mtFee, 1);
+        emit Swap(
+            to,
+            fromToken,
+            toToken,
+            payFromAmount,
+            receiveToAmount,
+            swapFee,
+            mtFee,
+            1
+        );
         return payFromAmount;
     }
 
@@ -180,30 +259,64 @@ contract D3Trading is D3Funding {
         address fromToken,
         address toToken,
         uint256 fromAmount
-    ) public view returns (uint256 payFromAmount, uint256 receiveToAmount, uint256 vusdAmount, uint256 swapFee, uint256 mtFee) {
+    )
+        public
+        view
+        returns (
+            uint256 payFromAmount,
+            uint256 receiveToAmount,
+            uint256 vusdAmount,
+            uint256 swapFee,
+            uint256 mtFee
+        )
+    {
         require(fromAmount > 1000, Errors.AMOUNT_TOO_SMALL);
-        Types.RangeOrderState memory D3State = getRangeOrderState(fromToken, toToken);
+        Types.RangeOrderState memory D3State = getRangeOrderState(
+            fromToken,
+            toToken
+        );
 
         {
-        uint256 fromTokenDec = IERC20Metadata(fromToken).decimals();
-        uint256 toTokenDec = IERC20Metadata(toToken).decimals();
-        uint256 fromAmountWithDec18 = Types.parseRealAmount(fromAmount, fromTokenDec);
-        uint256 receiveToAmountWithDec18;
-        ( , receiveToAmountWithDec18, vusdAmount) =
-            PMMRangeOrder.querySellTokens(D3State, fromToken, toToken, fromAmountWithDec18);
+            uint256 fromTokenDec = IERC20Metadata(fromToken).decimals();
+            uint256 toTokenDec = IERC20Metadata(toToken).decimals();
+            uint256 fromAmountWithDec18 = Types.parseRealAmount(
+                fromAmount,
+                fromTokenDec
+            );
+            uint256 receiveToAmountWithDec18;
+            (, receiveToAmountWithDec18, vusdAmount) = PMMRangeOrder
+                .querySellTokens(
+                    D3State,
+                    fromToken,
+                    toToken,
+                    fromAmountWithDec18
+                );
 
-        receiveToAmount = Types.parseDec18Amount(receiveToAmountWithDec18, toTokenDec);
-        payFromAmount = fromAmount;
+            receiveToAmount = Types.parseDec18Amount(
+                receiveToAmountWithDec18,
+                toTokenDec
+            );
+            payFromAmount = fromAmount;
         }
 
-        receiveToAmount = receiveToAmount > state.balances[toToken] ? state.balances[toToken] : receiveToAmount;
+        receiveToAmount = receiveToAmount > state.balances[toToken]
+            ? state.balances[toToken]
+            : receiveToAmount;
 
-        uint256 swapFeeRate = D3State.fromTokenMMInfo.swapFeeRate +  D3State.toTokenMMInfo.swapFeeRate;
+        uint256 swapFeeRate = D3State.fromTokenMMInfo.swapFeeRate +
+            D3State.toTokenMMInfo.swapFeeRate;
         swapFee = DecimalMath.mulFloor(receiveToAmount, swapFeeRate);
-        uint256 mtFeeRate = D3State.fromTokenMMInfo.mtFeeRate +  D3State.toTokenMMInfo.mtFeeRate;
+        uint256 mtFeeRate = D3State.fromTokenMMInfo.mtFeeRate +
+            D3State.toTokenMMInfo.mtFeeRate;
         mtFee = DecimalMath.mulFloor(receiveToAmount, mtFeeRate);
 
-        return (payFromAmount, receiveToAmount - mtFee, vusdAmount, swapFee, mtFee);
+        return (
+            payFromAmount,
+            receiveToAmount - mtFee,
+            vusdAmount,
+            swapFee,
+            mtFee
+        );
     }
 
     /// @notice user could query sellToken result deducted swapFee, assign toAmount
@@ -215,30 +328,58 @@ contract D3Trading is D3Funding {
         address fromToken,
         address toToken,
         uint256 toAmount
-    ) public view returns (uint256 payFromAmount, uint256 receiveToAmount, uint256 vusdAmount, uint256 swapFee, uint256 mtFee) {
+    )
+        public
+        view
+        returns (
+            uint256 payFromAmount,
+            uint256 receiveToAmount,
+            uint256 vusdAmount,
+            uint256 swapFee,
+            uint256 mtFee
+        )
+    {
         require(toAmount > 1000, Errors.AMOUNT_TOO_SMALL);
-        Types.RangeOrderState memory D3State = getRangeOrderState(fromToken, toToken);
+        Types.RangeOrderState memory D3State = getRangeOrderState(
+            fromToken,
+            toToken
+        );
 
         // query amount and transfer out
         uint256 toAmountWithFee;
         {
-        uint256 swapFeeRate = D3State.fromTokenMMInfo.swapFeeRate +  D3State.toTokenMMInfo.swapFeeRate;
-        swapFee = DecimalMath.mulFloor(toAmount, swapFeeRate);
-        uint256 mtFeeRate = D3State.fromTokenMMInfo.mtFeeRate +  D3State.toTokenMMInfo.mtFeeRate;
-        mtFee = DecimalMath.mulFloor(toAmount, mtFeeRate);
-        toAmountWithFee = toAmount + mtFee;
+            uint256 swapFeeRate = D3State.fromTokenMMInfo.swapFeeRate +
+                D3State.toTokenMMInfo.swapFeeRate;
+            swapFee = DecimalMath.mulFloor(toAmount, swapFeeRate);
+            uint256 mtFeeRate = D3State.fromTokenMMInfo.mtFeeRate +
+                D3State.toTokenMMInfo.mtFeeRate;
+            mtFee = DecimalMath.mulFloor(toAmount, mtFeeRate);
+            toAmountWithFee = toAmount + mtFee;
         }
 
-        require(toAmountWithFee <= state.balances[toToken], Errors.BALANCE_NOT_ENOUGH);
+        require(
+            toAmountWithFee <= state.balances[toToken],
+            Errors.BALANCE_NOT_ENOUGH
+        );
 
         uint256 fromTokenDec = IERC20Metadata(fromToken).decimals();
         uint256 toTokenDec = IERC20Metadata(toToken).decimals();
-        uint256 toFeeAmountWithDec18 = Types.parseRealAmount(toAmountWithFee, toTokenDec);
+        uint256 toFeeAmountWithDec18 = Types.parseRealAmount(
+            toAmountWithFee,
+            toTokenDec
+        );
         uint256 payFromAmountWithDec18;
-        (payFromAmountWithDec18, , vusdAmount) =
-            PMMRangeOrder.queryBuyTokens(D3State, fromToken, toToken, toFeeAmountWithDec18);
-        payFromAmount = Types.parseDec18Amount(payFromAmountWithDec18, fromTokenDec);
-        if(payFromAmount == 0) {
+        (payFromAmountWithDec18, , vusdAmount) = PMMRangeOrder.queryBuyTokens(
+            D3State,
+            fromToken,
+            toToken,
+            toFeeAmountWithDec18
+        );
+        payFromAmount = Types.parseDec18Amount(
+            payFromAmountWithDec18,
+            fromTokenDec
+        );
+        if (payFromAmount == 0) {
             payFromAmount = 1;
         }
 
@@ -247,7 +388,12 @@ contract D3Trading is D3Funding {
 
     // ================ internal ==========================
 
-    function _recordSwap(address fromToken, address toToken, uint256 fromAmount, uint256 toAmount) internal {
+    function _recordSwap(
+        address fromToken,
+        address toToken,
+        uint256 fromAmount,
+        uint256 toAmount
+    ) internal {
         tokenCumMap[fromToken].cumulativeBid += fromAmount;
         tokenCumMap[toToken].cumulativeAsk += toAmount;
 
@@ -256,8 +402,16 @@ contract D3Trading is D3Funding {
     }
 
     function _updateCumulative(address token) internal {
-        uint256 tokenIndex = uint256(ID3Maker(state._MAKER_).getOneTokenOriginIndex(token));
+        uint256 tokenIndex = uint256(
+            ID3Maker(state._MAKER_).getOneTokenOriginIndex(token)
+        );
         uint256 tokenFlag = (allFlag >> tokenIndex) & 1;
+        /*
+        1 << tokenIndex：将数字 1 向左移动 tokenIndex 位。
+        结果是一个只有在 tokenIndex 位置上为 1 的二进制数，其余位置为 0。
+        allFlag |= (1 << tokenIndex)：将 allFlag 与上述结果进行按位或操作，
+        以设置 allFlag 的 tokenIndex 位置上的标志位为 1，同时保持其他位的值不变。
+        */
         if (tokenFlag == 0) {
             tokenCumMap[token].cumulativeAsk = 0;
             tokenCumMap[token].cumulativeBid = 0;

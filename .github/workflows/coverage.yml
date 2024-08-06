@@ -1,4 +1,4 @@
-name: coverage 
+name: coverage
 
 on: [push, pull_request]
 
@@ -16,5 +16,5 @@ jobs:
         uses: onbjerg/foundry-toolchain@v1
         with:
           version: nightly
-          
+
       - run: yarn coverage

@@ -37,9 +37,10 @@ library DODOMath {
         if (k == 0) {
             return fairAmount / DecimalMath.ONE;
         }
-        uint256 V0V0V1V2 = DecimalMath.divFloor(V0 * V0 / V1, V2);
+        uint256 V0V0V1V2 = DecimalMath.divFloor((V0 * V0) / V1, V2);
         uint256 penalty = DecimalMath.mulFloor(k, V0V0V1V2); // k(V0^2/V1/V2)
-        return (DecimalMath.ONE - k + penalty) * fairAmount / DecimalMath.ONE2;
+        return
+            ((DecimalMath.ONE - k + penalty) * fairAmount) / DecimalMath.ONE2;
     }
 
     /*
@@ -81,7 +82,10 @@ library DODOMath {
 
         if (k == 0) {
             // why v1
-            return DecimalMath.mulFloor(i, delta) > V1 ? V1 : DecimalMath.mulFloor(i, delta);
+            return
+                DecimalMath.mulFloor(i, delta) > V1
+                    ? V1
+                    : DecimalMath.mulFloor(i, delta);
         }
 
         if (k == DecimalMath.ONE) {
@@ -98,9 +102,9 @@ library DODOMath {
             } else if ((idelta * V1) / idelta == V1) {
                 temp = (idelta * V1) / (V0 * (V0));
             } else {
-                temp = delta * (V1) / (V0) * (i) / (V0);
+                temp = (((delta * (V1)) / (V0)) * (i)) / (V0);
             }
-            return V1 * (temp) / (temp + (DecimalMath.ONE));
+            return (V1 * (temp)) / (temp + (DecimalMath.ONE));
         }
 
         // calculate -b value and sig
@@ -110,7 +114,7 @@ library DODOMath {
         // bAbs = abs(part1-part2)
         // if part1>part2 => b is negative => bSig is false
         // if part2>part1 => b is positive => bSig is true
-        uint256 part2 = k * (V0) / (V1) * (V0) + (i * (delta)); // kQ0^2/Q1-i*deltaB
+        uint256 part2 = ((k * (V0)) / (V1)) * (V0) + (i * (delta)); // kQ0^2/Q1-i*deltaB
         uint256 bAbs = (DecimalMath.ONE - k) * (V1); // (1-k)Q1
 
         bool bSig;
@@ -124,7 +128,10 @@ library DODOMath {
         bAbs = bAbs / (DecimalMath.ONE);
 
         // calculate sqrt
-        uint256 squareRoot = DecimalMath.mulFloor((DecimalMath.ONE - k) * (4), DecimalMath.mulFloor(k, V0) * (V0)); // 4(1-k)kQ0^2
+        uint256 squareRoot = DecimalMath.mulFloor(
+            (DecimalMath.ONE - k) * (4),
+            DecimalMath.mulFloor(k, V0) * (V0)
+        ); // 4(1-k)kQ0^2
         squareRoot = Math.sqrt((bAbs * bAbs) + squareRoot); // sqrt(b*b+4(1-k)kQ0*Q0)
 
         // final res

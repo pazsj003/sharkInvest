@@ -31,15 +31,15 @@ contract D3MM is D3Trading {
     }
 
     // ============= View =================
-    function _CREATOR_() external view returns(address) {
+    function _CREATOR_() external view returns (address) {
         return state._CREATOR_;
     }
 
-    function getFeeRate(address token) external view returns(uint256 feeRate) {
+    function getFeeRate(address token) external view returns (uint256 feeRate) {
         return IFeeRateModel(state._FEE_RATE_MODEL_).getFeeRate(token);
     }
 
-    function getPoolTokenlist() external view returns(address[] memory) {
+    function getPoolTokenlist() external view returns (address[] memory) {
         return ID3Maker(state._MAKER_).getPoolTokenListFromMaker();
     }
 
@@ -48,7 +48,17 @@ contract D3MM is D3Trading {
     }
 
     /// @notice get basic pool info
-    function getD3MMInfo() external view returns (address vault, address oracle, address maker, address feeRateModel, address maintainer) {
+    function getD3MMInfo()
+        external
+        view
+        returns (
+            address vault,
+            address oracle,
+            address maker,
+            address feeRateModel,
+            address maintainer
+        )
+    {
         vault = state._D3_VAULT_;
         oracle = state._ORACLE_;
         maker = state._MAKER_;

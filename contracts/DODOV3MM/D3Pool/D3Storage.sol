@@ -18,7 +18,11 @@ contract D3Storage is ReentrancyGuard, InitializableOwnable {
 
     // ============= Events ==========
     event MakerDeposit(address indexed token, uint256 amount);
-    event MakerWithdraw(address indexed to, address indexed token, uint256 amount);
+    event MakerWithdraw(
+        address indexed to,
+        address indexed token,
+        uint256 amount
+    );
 
     // sellOrNot = 0 means sell, 1 means buy.
     event Swap(

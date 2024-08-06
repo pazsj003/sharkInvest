@@ -61,7 +61,12 @@ contract DODOApproveProxy is InitializableOwnable {
         _IS_ALLOWED_PROXY_[oldDodoProxy] = false;
     }
 
-    function claimTokens(address token, address who, address dest, uint256 amount) external {
+    function claimTokens(
+        address token,
+        address who,
+        address dest,
+        uint256 amount
+    ) external {
         require(_IS_ALLOWED_PROXY_[msg.sender], "NOT_ALLOWED_PROXY");
         IDODOApprove(_DODO_APPROVE_).claimTokens(token, who, dest, amount);
     }

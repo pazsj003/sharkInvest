@@ -20,7 +20,10 @@ library PMMPricing {
         uint256 BLeft;
     }
 
-    function _queryBuyBaseToken(PMMState memory state, uint256 amount) internal pure returns (uint256 payQuote) {
+    function _queryBuyBaseToken(
+        PMMState memory state,
+        uint256 amount
+    ) internal pure returns (uint256 payQuote) {
         payQuote = _BuyBaseToken(state, amount, state.B, state.B0);
     }
 
@@ -41,15 +44,27 @@ library PMMPricing {
     ) internal pure returns (uint256 payQuoteToken) {
         require(amount < baseBalance, "DODOstate.BNOT_ENOUGH");
         uint256 B2 = baseBalance - amount;
-        return DODOMath._GeneralIntegrate(targetBaseAmount, baseBalance, B2, state.i, state.K);
+        return
+            DODOMath._GeneralIntegrate(
+                targetBaseAmount,
+                baseBalance,
+                B2,
+                state.i,
+                state.K
+            );
     }
 
     function _SellQuoteToken(
         PMMState memory state,
         uint256 payQuoteAmount
     ) internal pure returns (uint256 receiveBaseToken) {
-        return DODOMath._SolveQuadraticFunctionForTrade(
-            state.B0, state.B, payQuoteAmount, DecimalMath.reciprocalFloor(state.i), state.K
-        );
+        return
+            DODOMath._SolveQuadraticFunctionForTrade(
+                state.B0,
+                state.B,
+                payQuoteAmount,
+                DecimalMath.reciprocalFloor(state.i),
+                state.K
+            );
     }
 }

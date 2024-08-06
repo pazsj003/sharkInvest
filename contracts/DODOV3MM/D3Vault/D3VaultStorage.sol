@@ -14,6 +14,16 @@ struct LiquidationOrder {
     uint256 fromAmount;
 }
 
+enum rangetype {
+    oneWeek,
+    TwoWeek,
+    oneMonth,
+    ThreeMonth,
+    SixMonth,
+    oneYear
+}
+
+
 contract D3VaultStorage is ReentrancyGuard, Ownable {
     address public _D3_FACTORY_;
     address public _D3TOKEN_LOGIC_;
@@ -37,13 +47,33 @@ contract D3VaultStorage is ReentrancyGuard, Ownable {
     mapping(address => address[]) public creatorPoolMap; // user => pool[]
     mapping(address => bool) public tokens;
     mapping(address => AssetInfo) public assetInfo;
+    mapping(address => sharkDepositInfo) public sharkDepositInfo;
     mapping(address => bool) public allowedRouter;
     mapping(address => bool) public allowedLiquidator;
     mapping(address => mapping(address => uint256)) public liquidationTarget; // pool => (token => amount)
 
+    struct sharkDepositInfo {
+        address dToken;
+        address token;
+        mapping(address=>uint256) public amount;//每次存入的amount
+        mapping(address=>uint256) public baseInterest;// 每次的base保底收益率不同
+        mapping(address=>uint256) public lowInterest;// 每次的最低收益率不同
+        mapping(address=>uint256) public highInterest;
+
+
+
+    }
     struct AssetInfo {
         address dToken;
         uint256 balance;
+        //shark Info;
+        // uint256 baseInterest;
+        // uint256 lowInterestRate;
+        // uint256 highInterestRate;
+        // uint256 lowPrice;
+        // uint256 highPrice;
+
+        
         // borrow info
         uint256 totalBorrows;
         uint256 borrowIndex;
@@ -92,6 +122,8 @@ contract D3VaultStorage is ReentrancyGuard, Ownable {
     
     event AddToken(address token);
     event SetToken(address token);
+    event SetTokenShark(address token);
+
 
     event Liquidate(address indexed pool, address indexed collateral, uint256 collateralAmount, address indexed debt, uint256 debtAmount);
     event StartLiquidation(address pool);

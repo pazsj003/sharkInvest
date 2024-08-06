@@ -2,9 +2,9 @@ name: analyze
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
-    branches: [ main ]
+    branches: [main]
 
 jobs:
   analyze:
@@ -13,12 +13,12 @@ jobs:
       contents: read
       security-events: write
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v2
+      - name: Checkout repository
+        uses: actions/checkout@v2
 
-    - name: Run Slither
-      uses: crytic/slither-action@v0.1.0
-      continue-on-error: true
-      id: slither
-      with:
-        target: 'contracts/'
+      - name: Run Slither
+        uses: crytic/slither-action@v0.1.0
+        continue-on-error: true
+        id: slither
+        with:
+          target: "contracts/"

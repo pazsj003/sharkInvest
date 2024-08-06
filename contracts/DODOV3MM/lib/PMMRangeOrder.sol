@@ -15,28 +15,57 @@ library PMMRangeOrder {
         address fromToken,
         address toToken,
         uint256 fromTokenAmount
-    ) internal view returns (uint256 fromAmount, uint256 receiveToToken, uint256 vusdAmount) {
+    )
+        internal
+        view
+        returns (uint256 fromAmount, uint256 receiveToToken, uint256 vusdAmount)
+    {
         // contruct fromToken state and swap to vUSD
         uint256 receiveVUSD;
         {
-            PMMPricing.PMMState memory fromTokenState = _contructTokenState(roState, true, false);
-            receiveVUSD = PMMPricing._querySellQuoteToken(fromTokenState, fromTokenAmount);
+            PMMPricing.PMMState memory fromTokenState = _contructTokenState(
+                roState,
+                true,
+                false
+            );
+            receiveVUSD = PMMPricing._querySellQuoteToken(
+                fromTokenState,
+                fromTokenAmount
+            );
 
-            receiveVUSD = receiveVUSD > fromTokenState.BLeft ? fromTokenState.BLeft : receiveVUSD;
+            receiveVUSD = receiveVUSD > fromTokenState.BLeft
+                ? fromTokenState.BLeft
+                : receiveVUSD;
         }
 
         // construct toToken state and swap from vUSD to toToken
         {
-            PMMPricing.PMMState memory toTokenState = _contructTokenState(roState, false, true);
-            receiveToToken = PMMPricing._querySellQuoteToken(toTokenState, receiveVUSD);
+            PMMPricing.PMMState memory toTokenState = _contructTokenState(
+                roState,
+                false,
+                true
+            );
+            receiveToToken = PMMPricing._querySellQuoteToken(
+                toTokenState,
+                receiveVUSD
+            ); //里面是数学公式
 
-            receiveToToken = receiveToToken > toTokenState.BLeft ? toTokenState.BLeft : receiveToToken;
+            receiveToToken = receiveToToken > toTokenState.BLeft
+                ? toTokenState.BLeft
+                : receiveToToken;
         }
 
         // oracle protect
         {
-            uint256 oracleToAmount = ID3Oracle(roState.oracle).getMaxReceive(fromToken, toToken, fromTokenAmount);
-            require(oracleToAmount >= receiveToToken, Errors.RO_ORACLE_PROTECTION);
+            uint256 oracleToAmount = ID3Oracle(roState.oracle).getMaxReceive(
+                fromToken,
+                toToken,
+                fromTokenAmount
+            );
+            require(
+                oracleToAmount >= receiveToToken,
+                Errors.RO_ORACLE_PROTECTION
+            );
         }
         return (fromTokenAmount, receiveToToken, receiveVUSD);
     }
@@ -47,28 +76,56 @@ library PMMRangeOrder {
         address fromToken,
         address toToken,
         uint256 toTokenAmount
-    ) internal view returns (uint256 payFromToken, uint256 toAmount, uint256 vusdAmount) {
+    )
+        internal
+        view
+        returns (uint256 payFromToken, uint256 toAmount, uint256 vusdAmount)
+    {
         // contruct fromToken to vUSD
         uint256 payVUSD;
         {
-            PMMPricing.PMMState memory toTokenState = _contructTokenState(roState, false, true);
-            require(
-                toTokenAmount <= toTokenState.BMaxAmount - roState.toTokenMMInfo.cumulativeAsk, Errors.RO_VAULT_RESERVE
+            PMMPricing.PMMState memory toTokenState = _contructTokenState(
+                roState,
+                false,
+                true
             );
-            payVUSD = PMMPricing._queryBuyBaseToken(toTokenState, toTokenAmount);
+            require(
+                toTokenAmount <=
+                    toTokenState.BMaxAmount -
+                        roState.toTokenMMInfo.cumulativeAsk,
+                Errors.RO_VAULT_RESERVE
+            );
+            payVUSD = PMMPricing._queryBuyBaseToken(
+                toTokenState,
+                toTokenAmount
+            );
         }
 
         // construct vUSD to toToken
         {
-            PMMPricing.PMMState memory fromTokenState = _contructTokenState(roState, true, false);
+            PMMPricing.PMMState memory fromTokenState = _contructTokenState(
+                roState,
+                true,
+                false
+            );
             require(payVUSD <= fromTokenState.BLeft, Errors.RO_BID_AMOUNT);
-            payFromToken = PMMPricing._queryBuyBaseToken(fromTokenState, payVUSD);
+            payFromToken = PMMPricing._queryBuyBaseToken(
+                fromTokenState,
+                payVUSD
+            );
         }
 
         // oracle protect
         {
-            uint256 oracleToAmount = ID3Oracle(roState.oracle).getMaxReceive(fromToken, toToken, payFromToken);
-            require(oracleToAmount >= toTokenAmount, Errors.RO_ORACLE_PROTECTION);
+            uint256 oracleToAmount = ID3Oracle(roState.oracle).getMaxReceive(
+                fromToken,
+                toToken,
+                payFromToken
+            );
+            require(
+                oracleToAmount >= toTokenAmount,
+                Errors.RO_ORACLE_PROTECTION
+            );
         }
 
         return (payFromToken, toTokenAmount, payVUSD);
@@ -76,14 +133,19 @@ library PMMRangeOrder {
 
     // ========= internal ==========
     function _contructTokenState(
+        // 数学公私先不管了
         Types.RangeOrderState memory roState,
         bool fromTokenOrNot,
         bool askOrNot
     ) internal pure returns (PMMPricing.PMMState memory tokenState) {
-        Types.TokenMMInfo memory tokenMMInfo = fromTokenOrNot ? roState.fromTokenMMInfo : roState.toTokenMMInfo;
+        Types.TokenMMInfo memory tokenMMInfo = fromTokenOrNot
+            ? roState.fromTokenMMInfo
+            : roState.toTokenMMInfo;
 
         // bMax,k
-        tokenState.BMaxAmount = askOrNot ? tokenMMInfo.askAmount : tokenMMInfo.bidAmount;
+        tokenState.BMaxAmount = askOrNot
+            ? tokenMMInfo.askAmount
+            : tokenMMInfo.bidAmount;
 
         // amount = 0 protection
         require(tokenState.BMaxAmount > 0, Errors.RO_AMOUNT_ZERO);
@@ -96,9 +158,16 @@ library PMMRangeOrder {
             : (tokenMMInfo.bidDownPrice, tokenMMInfo.bidUpPrice);
         // price = 0 protection
         require(tokenState.i > 0, Errors.RO_PRICE_ZERO);
-        tokenState.B0 = _calB0WithPriceLimit(upPrice, tokenState.K, tokenState.i, tokenState.BMaxAmount);
+        tokenState.B0 = _calB0WithPriceLimit(
+            upPrice,
+            tokenState.K,
+            tokenState.i,
+            tokenState.BMaxAmount
+        );
         // B
-        tokenState.B = askOrNot ? tokenState.B0 - tokenMMInfo.cumulativeAsk : tokenState.B0 - tokenMMInfo.cumulativeBid;
+        tokenState.B = askOrNot
+            ? tokenState.B0 - tokenMMInfo.cumulativeAsk
+            : tokenState.B0 - tokenMMInfo.cumulativeBid;
 
         // BLeft
         tokenState.BLeft = askOrNot

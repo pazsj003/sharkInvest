@@ -6,7 +6,7 @@ const ARBITRUM_CONFIG = {
     USDT: "0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9", // decimals 6
     USDC: "0xaf88d065e77c8cC2239327C5EDb3A432268e5831", // decimals 6
     USDCe: "0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8", // decimals 6 (Bridged USDC)
-  }, 
+  },
   deployedAddress: {
     DODOApprove: "0xA867241cDC8d3b0C07C85cC06F25a0cD3b5474d8",
     wbtcAddress: "0x2f2a2543B76A4166549F7aaB2e75Bef0aefC5B0f",
@@ -27,7 +27,7 @@ const ARBITRUM_CONFIG = {
     FeeRateModel: "0x748c5D133D74a9ecbc715B13dCA7B3B356Ead750",
     D3MMFactory: "0x482432c15a1657020991aa60e856ac440dbE4CD6",
     D3Proxy: "0xbe9ec3C4825D87d77E0F049aA586449cF1d1E31b", // don't forget to add this to DODOApproveProxy
-    D3MM: "", 
+    D3MM: "",
     dodoPriceFeed: "0xA33a06c119EC08F92735F9ccA37e07Af08C4f281",
   },
   chainlinkPriceFeed: {

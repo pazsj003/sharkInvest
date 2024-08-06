@@ -8,7 +8,7 @@ import "../DODOV3MM/lib/InitializableOwnable.sol";
 contract MockFeeRateModel is IFeeRateModel, InitializableOwnable {
     mapping(address => bool) public isUsedFeeRate;
     mapping(address => uint256) public feeRateMap;
-    uint256 public defaultFeeRate; 
+    uint256 public defaultFeeRate;
 
     function init(address owner, uint256 _feeRate) public {
         initOwner(owner);
@@ -23,11 +23,14 @@ contract MockFeeRateModel is IFeeRateModel, InitializableOwnable {
         isUsedFeeRate[token] = isUse;
     }
 
-    function setTokenFeeRate(address token, uint256 tokenFeeRate) public onlyOwner {
+    function setTokenFeeRate(
+        address token,
+        uint256 tokenFeeRate
+    ) public onlyOwner {
         feeRateMap[token] = tokenFeeRate;
     }
 
-    function getFeeRate(address token) external view returns(uint256 feerate) {
+    function getFeeRate(address token) external view returns (uint256 feerate) {
         return isUsedFeeRate[token] ? feeRateMap[token] : defaultFeeRate;
     }
 

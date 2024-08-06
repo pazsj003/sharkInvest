@@ -23,9 +23,15 @@ contract MockD3Oracle is ID3Oracle, InitializableOwnable {
     // originToken => priceSource
     mapping(address => PriceSource) public priceSources;
 
-    function setPriceSource(address token, PriceSource calldata source) external onlyOwner {
+    function setPriceSource(
+        address token,
+        PriceSource calldata source
+    ) external onlyOwner {
         priceSources[token] = source;
-        require(source.priceTolerance <= DecimalMath.ONE, "INVALID_PRICE_TOLERANCE");
+        require(
+            source.priceTolerance <= DecimalMath.ONE,
+            "INVALID_PRICE_TOLERANCE"
+        );
     }
 
     // return 1e18 decimal
@@ -33,7 +39,9 @@ contract MockD3Oracle is ID3Oracle, InitializableOwnable {
         return priceSources[token].price;
     }
 
-    function getDec18Price(address token) public view override returns (uint256) {
+    function getDec18Price(
+        address token
+    ) public view override returns (uint256) {
         return priceSources[token].price;
     }
 
@@ -42,14 +50,25 @@ contract MockD3Oracle is ID3Oracle, InitializableOwnable {
     }
 
     // given the amount of fromToken, how much toToken can return at most
-    function getMaxReceive(address fromToken, address toToken, uint256 fromAmount) external view returns (uint256) {
+    function getMaxReceive(
+        address fromToken,
+        address toToken,
+        uint256 fromAmount
+    ) external view returns (uint256) {
         uint256 fromTlr = priceSources[fromToken].priceTolerance;
         uint256 toTlr = priceSources[toToken].priceTolerance;
 
-        return DecimalMath.div((fromAmount * getDec18Price(fromToken)) / getDec18Price(toToken), DecimalMath.mul(fromTlr, toTlr));
+        return
+            DecimalMath.div(
+                (fromAmount * getDec18Price(fromToken)) /
+                    getDec18Price(toToken),
+                DecimalMath.mul(fromTlr, toTlr)
+            );
     }
 
-    function getOriginalPrice(address token) public view override returns (uint256 price, uint8 priceDecimal) {
+    function getOriginalPrice(
+        address token
+    ) public view override returns (uint256 price, uint8 priceDecimal) {
         return (getPrice(token), 8);
     }
 

@@ -14,8 +14,10 @@ contract MockD3MM is D3MM {
         allFlag = newFlag;
     }
 
-    function getTokenFlag(address token) external view returns (uint256){
-        (, uint256 tokenIndex) = ID3Maker(state._MAKER_).getTokenMMInfoForPool(token);
-        return (allFlag >> (tokenIndex) & 1);
+    function getTokenFlag(address token) external view returns (uint256) {
+        (, uint256 tokenIndex) = ID3Maker(state._MAKER_).getTokenMMInfoForPool(
+            token
+        );
+        return ((allFlag >> (tokenIndex)) & 1);
     }
 }

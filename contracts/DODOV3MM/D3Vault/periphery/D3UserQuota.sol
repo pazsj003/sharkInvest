@@ -60,14 +60,24 @@ contract D3UserQuota is Ownable, ID3UserQuota {
     /// @notice user who holds 200 vToken, can deposit 4000 token
     /// @notice user who holds 300 vToken, can deposit 6000 token
     /// @notice user who holds 400 vToken, can deposit 10000 token
-    function setTiers(address token, uint256[] calldata tiers, uint256[] calldata amounts) external onlyOwner {
-        require(tiers.length > 0 && tiers.length == amounts.length, "D3UserQuota: length not match");
+    function setTiers(
+        address token,
+        uint256[] calldata tiers,
+        uint256[] calldata amounts
+    ) external onlyOwner {
+        require(
+            tiers.length > 0 && tiers.length == amounts.length,
+            "D3UserQuota: length not match"
+        );
         vTokenTiers[token] = tiers;
         quotaOnTiers[token] = amounts;
     }
 
     /// @notice Get the user quota based on tier
-    function getTierQuota(address user, address token) public view returns (uint256 quota) {
+    function getTierQuota(
+        address user,
+        address token
+    ) public view returns (uint256 quota) {
         uint256 vTokenBalance = IERC20(_vTOKEN_).balanceOf(user);
         uint256[] memory tiers = vTokenTiers[token];
         uint256[] memory amounts = quotaOnTiers[token];
@@ -80,15 +90,21 @@ contract D3UserQuota is Ownable, ID3UserQuota {
     }
 
     /// @notice Get the used quota
-    function getUsedQuota(address user, address token) public view returns (uint256) {
-        (address dToken,,,,,,,,,,) = d3Vault.getAssetInfo(token);
+    function getUsedQuota(
+        address user,
+        address token
+    ) public view returns (uint256) {
+        (address dToken, , , , , , , , , , ) = d3Vault.getAssetInfo(token);
         uint256 dTokenBalance = IERC20(dToken).balanceOf(user);
         uint256 exchangeRate = d3Vault.getExchangeRate(token);
         return dTokenBalance.mul(exchangeRate);
     }
 
     /// @notice Get the user quota for a token
-    function getUserQuota(address user, address token) public view returns (uint256) {
+    function getUserQuota(
+        address user,
+        address token
+    ) public view returns (uint256) {
         uint256 usedQuota = getUsedQuota(user, token);
         if (isUsingQuota[token]) {
             if (isGlobalQuota[token]) {
@@ -102,7 +118,11 @@ contract D3UserQuota is Ownable, ID3UserQuota {
     }
 
     /// @notice Check if the quantity of tokens deposited by the user is allowed.
-    function checkQuota(address user, address token, uint256 amount) public view returns (bool) {
+    function checkQuota(
+        address user,
+        address token,
+        uint256 amount
+    ) public view returns (bool) {
         return (amount <= getUserQuota(user, token));
     }
 }

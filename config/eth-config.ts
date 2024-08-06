@@ -7,7 +7,7 @@ const ETH_CONFIG = {
     wstETH: "0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0",
     USDT: "", // decimals 6
     USDC: "", // decimals 6
-  }, 
+  },
   deployedAddress: {
     DODOApprove: "0xCB859eA579b28e02B87A1FDE08d087ab9dbE5149",
     D3Oracle: "0x2F66C5aAF006Bd9c51615D617589C16c0ed35fD3",
@@ -24,7 +24,7 @@ const ETH_CONFIG = {
     D3FeeRateModel: "0xA6d0066328Edbcf3220cf8F61e8527e589DD9719",
     D3MMFactory: "0xBbD59b9316eE65526DbBdEc2A748Cc05A285d54C",
     D3Proxy: "0x411ec324598EF53b1E8663e335e9094464523e6B", // don't forget to add this to DODOApproveProxy
-    D3MM: "", 
+    D3MM: "",
     WstETHPriceFeed: "0xd0fde489FeCBf3dCBF10624424dFd8a7834aAa3F",
   },
   chainlinkPriceFeed: {

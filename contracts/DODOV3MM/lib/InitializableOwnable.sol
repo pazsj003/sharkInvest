@@ -13,9 +13,15 @@ contract InitializableOwnable {
 
     // ============ Events ============
 
-    event OwnershipTransferPrepared(address indexed previousOwner, address indexed newOwner);
+    event OwnershipTransferPrepared(
+        address indexed previousOwner,
+        address indexed newOwner
+    );
 
-    event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
+    event OwnershipTransferred(
+        address indexed previousOwner,
+        address indexed newOwner
+    );
 
     // ============ Modifiers ============
 
