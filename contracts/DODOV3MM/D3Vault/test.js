@@ -1,1 +1,0 @@
-const time = new Date();

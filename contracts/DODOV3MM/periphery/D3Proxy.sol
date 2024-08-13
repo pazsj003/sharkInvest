@@ -18,7 +18,8 @@ contract D3Proxy is IDODOSwapCallback {
     address public immutable _DODO_APPROVE_PROXY_;
     address public immutable _WETH_;
     address public immutable _D3_VAULT_;
-    address public immutable _ETH_ADDRESS_ = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
+    address public immutable _ETH_ADDRESS_ =
+        0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
 
     struct SwapCallbackData {
         bytes data;
@@ -53,10 +54,14 @@ contract D3Proxy is IDODOSwapCallback {
     /// @notice Call multiple functions in the current contract and return the data from all of them if they all succeed
     /// @param data The encoded function data for each of the calls to make to this contract
     /// @return results The results from each of the calls passed in via data
-    function multicall(bytes[] calldata data) public payable returns (bytes[] memory results) {
+    function multicall(
+        bytes[] calldata data
+    ) public payable returns (bytes[] memory results) {
         results = new bytes[](data.length);
         for (uint256 i = 0; i < data.length; i++) {
-            (bool success, bytes memory result) = address(this).delegatecall(data[i]);
+            (bool success, bytes memory result) = address(this).delegatecall(
+                data[i]
+            );
 
             if (!success) {
                 assembly {
@@ -93,14 +98,34 @@ contract D3Proxy is IDODOSwapCallback {
 
         if (fromToken == _ETH_ADDRESS_) {
             require(msg.value == fromAmount, "D3PROXY_VALUE_INVALID");
-            receiveToAmount = ID3MM(pool).sellToken(to, _WETH_, toToken, fromAmount, minReceiveAmount, abi.encode(swapData));
+            receiveToAmount = ID3MM(pool).sellToken(
+                to,
+                _WETH_,
+                toToken,
+                fromAmount,
+                minReceiveAmount,
+                abi.encode(swapData)
+            );
         } else if (toToken == _ETH_ADDRESS_) {
-            receiveToAmount =
-                ID3MM(pool).sellToken(address(this), fromToken, _WETH_, fromAmount, minReceiveAmount, abi.encode(swapData));
+            receiveToAmount = ID3MM(pool).sellToken(
+                address(this),
+                fromToken,
+                _WETH_,
+                fromAmount,
+                minReceiveAmount,
+                abi.encode(swapData)
+            );
             _withdrawWETH(to, receiveToAmount);
             // multicall withdraw weth to user
         } else {
-            receiveToAmount = ID3MM(pool).sellToken(to, fromToken, toToken, fromAmount, minReceiveAmount, abi.encode(swapData));
+            receiveToAmount = ID3MM(pool).sellToken(
+                to,
+                fromToken,
+                toToken,
+                fromAmount,
+                minReceiveAmount,
+                abi.encode(swapData)
+            );
         }
     }
 
@@ -128,14 +153,35 @@ contract D3Proxy is IDODOSwapCallback {
         swapData.payer = msg.sender;
 
         if (fromToken == _ETH_ADDRESS_) {
-            payFromAmount = ID3MM(pool).buyToken(to, _WETH_, toToken, quoteAmount, maxPayAmount, abi.encode(swapData));
+            payFromAmount = ID3MM(pool).buyToken(
+                to,
+                _WETH_,
+                toToken,
+                quoteAmount,
+                maxPayAmount,
+                abi.encode(swapData)
+            );
             // multicall refund eth to user
         } else if (toToken == _ETH_ADDRESS_) {
-            payFromAmount = ID3MM(pool).buyToken(address(this), fromToken, _WETH_, quoteAmount, maxPayAmount, abi.encode(swapData));
+            payFromAmount = ID3MM(pool).buyToken(
+                address(this),
+                fromToken,
+                _WETH_,
+                quoteAmount,
+                maxPayAmount,
+                abi.encode(swapData)
+            );
             _withdrawWETH(to, quoteAmount);
             // multicall withdraw weth to user
         } else {
-            payFromAmount = ID3MM(pool).buyToken(to, fromToken, toToken, quoteAmount, maxPayAmount, abi.encode(swapData));
+            payFromAmount = ID3MM(pool).buyToken(
+                to,
+                fromToken,
+                toToken,
+                quoteAmount,
+                maxPayAmount,
+                abi.encode(swapData)
+            );
         }
     }
 
@@ -143,18 +189,30 @@ contract D3Proxy is IDODOSwapCallback {
     /// @param token The address of token
     /// @param value The amount of token need to deposit to D3MM
     /// @param _data Any data to be passed through to the callback
-    function d3MMSwapCallBack(address token, uint256 value, bytes calldata _data) external override {
-        require(ID3Vault(_D3_VAULT_).allPoolAddrMap(msg.sender), "D3PROXY_CALLBACK_INVALID");
+    function d3MMSwapCallBack(
+        address token,
+        uint256 value,
+        bytes calldata _data
+    ) external override {
+        require(
+            ID3Vault(_D3_VAULT_).allPoolAddrMap(msg.sender),
+            "D3PROXY_CALLBACK_INVALID"
+        );
         SwapCallbackData memory decodeData;
-        decodeData = abi.decode(_data, (SwapCallbackData));//括号用于表示类型列表，即使只有一个类型也需要用括号括起来，以满足函数的语法要求。
-        _deposit(decodeData.payer, msg.sender, token, value);//转给d3trading.sol 合约来swap,msg.sender 合约就是那个合约
+        decodeData = abi.decode(_data, (SwapCallbackData)); //括号用于表示类型列表，即使只有一个类型也需要用括号括起来，以满足函数的语法要求。
+        _deposit(decodeData.payer, msg.sender, token, value); //转给d3trading.sol 合约来swap,msg.sender 合约就是那个合约
     }
 
     /// @notice LP deposit token into pool
     /// @param user the one who own dtokens
     /// @param  token The address of token
     /// @param amount The amount of token
-    function userDeposit(address user, address token, uint256 amount, uint256 minDtokenAmount) external payable {
+    function userDeposit(
+        address user,
+        address token,
+        uint256 amount,
+        uint256 minDtokenAmount
+    ) external payable {
         uint256 dTokenAmount;
         if (token == _ETH_ADDRESS_) {
             require(msg.value == amount, "D3PROXY_PAYMENT_NOT_MATCH");
@@ -164,23 +222,46 @@ contract D3Proxy is IDODOSwapCallback {
             _deposit(msg.sender, _D3_VAULT_, token, amount);
             dTokenAmount = ID3Vault(_D3_VAULT_).userDeposit(user, token);
         }
-        require(dTokenAmount >= minDtokenAmount, "D3PROXY_MIN_DTOKEN_AMOUNT_FAIL");
+        require(
+            dTokenAmount >= minDtokenAmount,
+            "D3PROXY_MIN_DTOKEN_AMOUNT_FAIL"
+        );
     }
 
-    function userSharkDeposit(address user, address token, uint256 amount,)external payable {
+     function userSharkDeposit(
+        address user, 
+        address token, 
+        uint256 amount,)external payable {
+    
 
-        
-    }
+     }
 
-    function userWithdraw(address to, address token, uint256 dTokenAmount, uint256 minReceiveAmount) external payable returns(uint256 amount){
+    function userWithdraw(
+        address to,
+        address token,
+        uint256 dTokenAmount,
+        uint256 minReceiveAmount
+    ) external payable returns (uint256 amount) {
         if (token != _ETH_ADDRESS_) {
-            (address dToken,,,,,,,,,,) = ID3Vault(_D3_VAULT_).getAssetInfo(token);
+            (address dToken, , , , , , , , , , ) = ID3Vault(_D3_VAULT_)
+                .getAssetInfo(token);
             _deposit(msg.sender, address(this), dToken, dTokenAmount);
-            amount = ID3Vault(_D3_VAULT_).userWithdraw(to, msg.sender, token, dTokenAmount);    
+            amount = ID3Vault(_D3_VAULT_).userWithdraw(
+                to,
+                msg.sender,
+                token,
+                dTokenAmount
+            );
         } else {
-            (address dToken,,,,,,,,,,) = ID3Vault(_D3_VAULT_).getAssetInfo(_WETH_);
+            (address dToken, , , , , , , , , , ) = ID3Vault(_D3_VAULT_)
+                .getAssetInfo(_WETH_);
             _deposit(msg.sender, address(this), dToken, dTokenAmount);
-            amount = ID3Vault(_D3_VAULT_).userWithdraw(address(this), msg.sender, _WETH_, dTokenAmount);
+            amount = ID3Vault(_D3_VAULT_).userWithdraw(
+                address(this),
+                msg.sender,
+                _WETH_,
+                dTokenAmount
+            );
             _withdrawWETH(to, amount);
         }
         require(amount >= minReceiveAmount, "D3PROXY_MIN_RECEIVE_FAIL");
@@ -190,17 +271,20 @@ contract D3Proxy is IDODOSwapCallback {
     /// @param pool The address of pool
     /// @param  token The address of token
     /// @param amount The amount of token
-    function makerDeposit(address pool, address token, uint256 amount) external payable {
+    function makerDeposit(
+        address pool,
+        address token,
+        uint256 amount
+    ) external payable {
         if (token == _ETH_ADDRESS_) {
             require(msg.value == amount, "D3PROXY_PAYMENT_NOT_MATCH");
             _deposit(msg.sender, pool, _WETH_, amount);
             ID3MM(pool).makerDeposit(_WETH_);
-        } else{
+        } else {
             _deposit(msg.sender, pool, token, amount);
             ID3MM(pool).makerDeposit(token);
         }
     }
-
 
     // ======= external refund =======
 
@@ -229,14 +313,24 @@ contract D3Proxy is IDODOSwapCallback {
     /// @param to The address which will receive the token
     /// @param token The token address
     /// @param value The token amount
-    function _deposit(address from, address to, address token, uint256 value) internal {
+    function _deposit(
+        address from,
+        address to,
+        address token,
+        uint256 value
+    ) internal {
         if (token == _WETH_ && address(this).balance >= value) {
             // pay with WETH9
             IWETH(_WETH_).deposit{value: value}(); // wrap only what is needed to pay
             IWETH(_WETH_).transfer(to, value);
         } else {
             // pull payment
-            IDODOApproveProxy(_DODO_APPROVE_PROXY_).claimTokens(token, from, to, value);
+            IDODOApproveProxy(_DODO_APPROVE_PROXY_).claimTokens(
+                token,
+                from,
+                to,
+                value
+            );
         }
     }
 
@@ -253,7 +347,7 @@ contract D3Proxy is IDODOSwapCallback {
     /// @param to The destination of the transfer
     /// @param value The value to be transferred
     function _safeTransferETH(address to, uint256 value) internal {
-        (bool success,) = to.call{value: value}(new bytes(0));
+        (bool success, ) = to.call{value: value}(new bytes(0));
         require(success, "D3PROXY_ETH_TRANSFER_FAIL");
     }
 

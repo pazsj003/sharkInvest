@@ -265,11 +265,11 @@ contract D3Vault is D3VaultFunding, D3VaultLiquidation {
             uint256 debtWeight,
             uint256 withdrawnReserves,
             uint256 balance,
-            uint256 baseInterest,
-            uint256 lowInterestRate,
-            uint256 highInterestRate,
-            uint256 lowPrice,
-            uint256 highPrice
+            // uint256 baseInterest,
+            // uint256 lowInterestRate,
+            // uint256 highInterestRate,
+            // uint256 lowPrice,
+            // uint256 highPrice
 
         )
     {

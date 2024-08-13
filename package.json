@@ -37,5 +37,8 @@
     "@chainlink/contracts": "^0.5.1",
     "@openzeppelin/contracts": "^4.9.2",
     "solhint": "^3.3.7"
-  }
+  },
+  "plugins": [
+    "prettier-plugin-solidity"
+  ]
 }

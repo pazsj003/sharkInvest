@@ -14,16 +14,6 @@ struct LiquidationOrder {
     uint256 fromAmount;
 }
 
-enum rangetype {
-    oneWeek,
-    TwoWeek,
-    oneMonth,
-    ThreeMonth,
-    SixMonth,
-    oneYear
-}
-
-
 contract D3VaultStorage is ReentrancyGuard, Ownable {
     address public _D3_FACTORY_;
     address public _D3TOKEN_LOGIC_;
@@ -47,22 +37,28 @@ contract D3VaultStorage is ReentrancyGuard, Ownable {
     mapping(address => address[]) public creatorPoolMap; // user => pool[]
     mapping(address => bool) public tokens;
     mapping(address => AssetInfo) public assetInfo;
-    mapping(address => sharkDepositInfo) public sharkDepositInfo;
+    mapping(address => SharkDepositInfo) public sharkDepositInfo;
     mapping(address => bool) public allowedRouter;
     mapping(address => bool) public allowedLiquidator;
     mapping(address => mapping(address => uint256)) public liquidationTarget; // pool => (token => amount)
 
-    struct sharkDepositInfo {
+    struct SharkDepositInfo {
         address dToken;
         address token;
-        mapping(address=>uint256) public amount;//每次存入的amount
-        mapping(address=>uint256) public baseInterest;// 每次的base保底收益率不同
-        mapping(address=>uint256) public lowInterest;// 每次的最低收益率不同
-        mapping(address=>uint256) public highInterest;
-
-
-
+        mapping(address => uint256) amount; //每次存入的amount
+        mapping(address => uint256) baseInterest; // 每次的base保底收益率不同
+        mapping(address => uint256) lowInterest; // 每次的最低收益率不同
+        mapping(address => uint256) highInterest;
     }
+    enum rangetype {
+        oneWeek,
+        TwoWeek,
+        oneMonth,
+        ThreeMonth,
+        SixMonth,
+        oneYear
+    }
+
     struct AssetInfo {
         address dToken;
         uint256 balance;
@@ -73,7 +69,6 @@ contract D3VaultStorage is ReentrancyGuard, Ownable {
         // uint256 lowPrice;
         // uint256 highPrice;
 
-        
         // borrow info
         uint256 totalBorrows;
         uint256 borrowIndex;
@@ -95,10 +90,31 @@ contract D3VaultStorage is ReentrancyGuard, Ownable {
         uint256 interestIndex;
     }
 
-    event PoolBorrow(address indexed pool, address indexed token, uint256 amount, uint256 interests);
-    event PoolRepay(address indexed pool, address indexed token, uint256 amount, uint256 interests);
-    event UserDeposit(address indexed user, address indexed token, uint256 amount, uint256 dTokenAmount);
-    event UserWithdraw(address indexed msgSender, address indexed user, address indexed token, uint256 amount, uint256 dTokenAmount);
+    event PoolBorrow(
+        address indexed pool,
+        address indexed token,
+        uint256 amount,
+        uint256 interests
+    );
+    event PoolRepay(
+        address indexed pool,
+        address indexed token,
+        uint256 amount,
+        uint256 interests
+    );
+    event UserDeposit(
+        address indexed user,
+        address indexed token,
+        uint256 amount,
+        uint256 dTokenAmount
+    );
+    event UserWithdraw(
+        address indexed msgSender,
+        address indexed user,
+        address indexed token,
+        uint256 amount,
+        uint256 dTokenAmount
+    );
     event AddPool(address pool);
     event RemovePool(address pool);
 
@@ -113,26 +129,32 @@ contract D3VaultStorage is ReentrancyGuard, Ownable {
     event SetMM(uint256 MM);
     event SetDiscount(uint256 discount);
     event SetDTokenTemplate(address template);
-    
+
     event AddRouter(address router);
     event RemoveRouter(address router);
-    
+
     event AddLiquidator(address liquidator);
     event RemoveLiquidator(address liquidator);
-    
+
     event AddToken(address token);
     event SetToken(address token);
     event SetTokenShark(address token);
 
-
-    event Liquidate(address indexed pool, address indexed collateral, uint256 collateralAmount, address indexed debt, uint256 debtAmount);
+    event Liquidate(
+        address indexed pool,
+        address indexed collateral,
+        uint256 collateralAmount,
+        address indexed debt,
+        uint256 debtAmount
+    );
     event StartLiquidation(address pool);
     event FinishLiquidation(address pool);
 
     event WithdrawReserves(address indexed token, uint256 amount);
 
     modifier onlyLiquidator() {
-        if (!allowedLiquidator[msg.sender]) revert Errors.D3VaultNotAllowedLiquidator();
+        if (!allowedLiquidator[msg.sender])
+            revert Errors.D3VaultNotAllowedLiquidator();
         _;
     }
 
@@ -157,7 +179,8 @@ contract D3VaultStorage is ReentrancyGuard, Ownable {
     }
 
     modifier onlyRemovingPool() {
-        if (msg.sender != _PENDING_REMOVE_POOL_) revert Errors.D3VaultNotPendingRemovePool();
+        if (msg.sender != _PENDING_REMOVE_POOL_)
+            revert Errors.D3VaultNotPendingRemovePool();
         _;
     }
 }
