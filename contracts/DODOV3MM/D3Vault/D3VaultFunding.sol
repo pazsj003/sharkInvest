@@ -90,6 +90,189 @@ contract D3VaultFunding is D3VaultStorage {
         emit UserWithdraw(msg.sender, user, token, amount, dTokenAmount);
     }
 
+    //  shark deposit wihdraw get
+    function buySharkDeposit(
+        address user,
+        address token,
+        uint8 range,
+        uint256 baseInterest,
+        uint256 lowInterestRate,
+        uint256 highInterestRate,
+        uint256 lowPrice,
+        uint256 highPrice
+    )
+        external
+        nonReentrant
+        allowedSharkToken(token)
+        returns (uint256 dTokenAmount)
+    {
+        accrueInterest(token);
+        AssetInfo storage info = assetInfo[token];
+        uint256 realBalance = IERC20(token).balanceOf(address(this));
+        uint256 amount = realBalance - info.balance;
+        if (!ID3UserQuota(_USER_QUOTA_).checkQuota(user, token, amount))
+            revert Errors.D3VaultExceedQuota();
+        // 钱提前打进去， 但没有利息计算环节， 而且这个资金跟之前的userDeposit 渠道不同
+        addSharkInterest(
+            range,
+            amount,
+            baseInterest,
+            lowInterestRate,
+            highInterestRate,
+            lowPrice,
+            highPrice
+        );
+
+        uint256 exchangeRate = _getExchangeRate(token);
+        uint256 totalDToken = IDToken(info.dToken).totalSupply();
+        if (totalDToken.mul(exchangeRate) + amount > info.maxDepositAmount)
+            revert Errors.D3VaultExceedMaxDepositAmount();
+        dTokenAmount = amount.div(exchangeRate);
+
+        if (totalDToken == 0) {
+            // permanently lock a very small amount of dTokens into address(1), which reduces potential issues with rounding,
+            // and also prevents the pool from ever being fully drained
+            if (dTokenAmount <= DEFAULT_MINIMUM_DTOKEN)
+                revert Errors.D3VaultMinimumDToken();
+            IDToken(info.dToken).mint(address(1), DEFAULT_MINIMUM_DTOKEN);
+            IDToken(info.dToken).mint(
+                user,
+                dTokenAmount - DEFAULT_MINIMUM_DTOKEN
+            );
+        } else {
+            IDToken(info.dToken).mint(user, dTokenAmount);
+        }
+
+        info.balance = realBalance;
+
+        emit SharkDeposit(user, token, amount, dTokenAmount);
+    }
+
+    function sharkWithdraw(
+        address user,
+        address token,
+        address token,
+        uint256 dTokenAmount,
+        uint256 depositTimestamp,
+        uint256 depositBlock
+    ) external nonReentrant allowedToken(token) returns (uint256 amount) {
+        accrueInterest(token);
+
+        AssetInfo storage info = assetInfo[token];
+        if (dTokenAmount > IDToken(info.dToken).balanceOf(msg.sender))
+            revert Errors.D3VaultDTokenBalanceNotEnough();
+
+        uint256 amount = caculateFinalSharkInterest(
+            token,
+            depositBlock,
+            depositTimestamp
+        );
+        deleteSharkInfo(token, depositBlock, depositTimestamp);
+
+        IDToken(info.dToken).burn(msg.sender, dTokenAmount);
+        IERC20(token).safeTransfer(to, amount);
+        info.balance = info.balance - amount;
+
+        // used for calculate user withdraw amount
+        // this function could be called from d3Proxy, so we need "user" param
+        // In the meantime, some users may hope to use this function directly,
+        // to prevent these users fill "user" param with wrong addresses,
+        // we use "msg.sender" param to check.
+        emit SharkWithdraw(msg.sender, user, token, amount, dTokenAmount);
+    }
+
+    function caculateFinalSharkInterest(
+        address token,
+        uint256 depositBlock,
+        uint256 depositTimestamp
+    ) internal returns (uint256 finalInterest) {
+        SharkDepositInfo storage sharkinfo = sharkInfo[token];
+        bytes32 key = getKey(user, depositBlock, depositTimestamp);
+        sharkinfo.amount[key];
+        uint8 range = sharkinfo.rangetype[key];
+        uint256 amount = sharkinfo.amount[key];
+        uint256 baseInterest = sharkinfo.baseInterest[key];
+        uint256 lowInterestRate = sharkinfo.lowInterest[key];
+        uint256 highInterestRate = sharkinfo.highInterest[key];
+        uint256 lowPrice = sharkinfo.lowPrice[key];
+        uint256 highPrice = sharkinfo.highPrice[key];
+        uint256 depositeDays = 0;
+        // range 的类型，   比较现在的 价格，  不同类型的选择不同
+        if (range == 0) depositeDays = 7;
+        else if (range == 1) depositeDays = 14;
+        else if (range == 2) depositeDays = 30;
+        else if (range == 3) depositeDays = 90;
+        else if (range == 4) depositeDays = 180;
+        else if (range == 5) depositeDays = 365;
+        else revert("Invalid range type");
+        bool passedDay = isTimeDifferenceValid(depositTimestamp, depositeDays);
+        require(passedDay, "TIME IS NOT ENOUGH TO WITHDRAW");
+        uint256 CurrentPrice = ID3Oracle(_ORACLE_).getPrice(token);
+        if (CurrentPrice >= lowPrice && CurrentPrice <= highPrice) {
+            // 计算到期年化收益率 到期年化收益率=最小收益率+(结算价格-下限价格)/(上限价格-下限价格)*(最大收益率-最小收益率)
+            finalInterestRate =
+                lowInterestRate +
+                ((CurrentPrice - lowPrice) /
+                    (highInterestRate - lowInterestRate)) *
+                (highPrice - lowPrice);
+        } else {
+            // 如果价格超出区间，使用保底收益率
+            finalInterestRate = baseInterest;
+        }
+        // 计算最终收益 收益 = 本金 * 到期年化收益率 / 365 * 投资期限
+        uint256 finalInterest = ((amount * finalInterestRate) / 365) *
+            depositeDays;
+    }
+
+    function deleteSharkInfo(
+        address token,
+        uint256 depositBlock,
+        uint256 depositTimestamp
+    ) internal {
+        SharkDepositInfo storage sharkInfo = sharkInfos[token];
+        bytes32 key = getKey(msg.sender, depositBlock, depositTimestamp);
+
+        // 确保键存在于 keys 数组中
+        for (uint256 i = 0; i < sharkInfo.keys.length; i++) {
+            if (sharkInfo.keys[i] == key) {
+                // 删除映射中的数据
+                delete sharkInfo.amount[key];
+                delete sharkInfo.baseInterest[key];
+                delete sharkInfo.lowInterest[key];
+                delete sharkInfo.highInterest[key];
+                delete sharkInfo.lowPrice[key];
+                delete sharkInfo.highPrice[key];
+                delete sharkInfo.rangetype[key];
+
+                // 从 keys 数组中移除该键
+                sharkInfo.keys[i] = sharkInfo.keys[sharkInfo.keys.length - 1];
+                sharkInfo.keys.pop();
+                break;
+            }
+        }
+    }
+
+    function isTimeDifferenceValid(
+        uint256 pastTimestamp,
+        uint256 depositeDays
+    ) public view returns (bool) {
+        // 获取当前的区块时间戳
+        uint256 currentTimestamp = block.timestamp;
+
+        // 计算时间差
+        uint256 timeDifference = currentTimestamp - pastTimestamp;
+
+        // 检查时间差是否大于等于指定的天数（以秒为单位）
+        if (timeDifference >= depositeDays * SECONDS_PER_DAY) {
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    function caculateCurrentSharkInterest();
+    function getAvailableSharkInfo();
+
     // ---------- Pool Fund ----------
     function poolBorrow(
         address token,
@@ -290,6 +473,37 @@ contract D3VaultFunding is D3VaultStorage {
             address token = tokenList[i];
             accrueInterest(token);
         }
+    }
+
+    function addSharkInterest(
+        uint8 range,
+        uint256 amount,
+        uint256 baseInterest,
+        uint256 lowInterestRate,
+        uint256 highInterestRate,
+        uint256 lowPrice,
+        uint256 highPrice
+    ) internal {
+        SharkDepositInfo storage sharkinfo = sharkDepositInfo[token];
+
+        uint256 currentTime = block.timestamp;
+        uint256 currentBlock = block.number;
+        bytes32 key = getKey(msg.sender, currentBlock, currentTime);
+        sharkinfo.keys.push(key);
+        sharkinfo.amount[key] = amount;
+        sharkinfo.rangetype[key] = range;
+        sharkinfo.baseInterest[key] = baseInterest;
+        sharkinfo.lowInterest[key] = lowInterestRate;
+        sharkinfo.highInterest[key] = highInterestRate;
+        sharkinfo.lowPrice[key] = lowPrice;
+        sharkinfo.highPrice[key] = highPrice;
+    }
+    function getKey(
+        address user,
+        uint256 currentBlock,
+        uint256 currentTime
+    ) internal view returns (bytes32) {
+        return keccak256(abi.encodePacked(user, currentBlock, currentTime));
     }
 
     /// @dev r: interest rate per second (decimals 18)
@@ -664,59 +878,6 @@ contract D3VaultFunding is D3VaultStorage {
         currentAmount = record.amount;
     }
 
-    function buySharkDeposit(
-        address user,
-        address token,
-        uint8 range,
-        uint256 baseInterest,
-        uint256 lowInterestRate,
-        uint256 highInterestRate,
-        uint256 lowPrice,
-        uint256 highPrice
-    )
-        external
-        nonReentrant
-        allowedSharkToken(token)
-        returns (uint256 dTokenAmount)
-    {
-        // 钱提前打进去， 但没有利息计算环节， 而且这个资金跟之前的userDeposit 渠道不同
-        sharkInterest(
-            range,
-            baseInterest,
-            lowInterestRate,
-            highInterestRate,
-            lowPrice,
-            highPrice
-        );
-        AssetInfo storage info = assetInfo[token];
-        uint256 realBalance = IERC20(token).balanceOf(address(this));
-        uint256 amount = realBalance - info.balance;
-        if (!ID3UserQuota(_USER_QUOTA_).checkQuota(user, token, amount))
-            revert Errors.D3VaultExceedQuota();
-        uint256 exchangeRate = _getExchangeRate(token);
-        uint256 totalDToken = IDToken(info.dToken).totalSupply();
-        if (totalDToken.mul(exchangeRate) + amount > info.maxDepositAmount)
-            revert Errors.D3VaultExceedMaxDepositAmount();
-        dTokenAmount = amount.div(exchangeRate);
-
-        if (totalDToken == 0) {
-            // permanently lock a very small amount of dTokens into address(1), which reduces potential issues with rounding,
-            // and also prevents the pool from ever being fully drained
-            if (dTokenAmount <= DEFAULT_MINIMUM_DTOKEN)
-                revert Errors.D3VaultMinimumDToken();
-            IDToken(info.dToken).mint(address(1), DEFAULT_MINIMUM_DTOKEN);
-            IDToken(info.dToken).mint(
-                user,
-                dTokenAmount - DEFAULT_MINIMUM_DTOKEN
-            );
-        } else {
-            IDToken(info.dToken).mint(user, dTokenAmount);
-        }
-
-        info.balance = realBalance;
-
-        emit UserDeposit(user, token, amount, dTokenAmount);
-    }
     // 内部鲨鱼鳍的一些函数需要放， 然后通过d3proxy 来
     // 产品申购 - 锁定计息 - 到期结算 - 还本付息 这个利息跟直接存入的利息不同的计算方式，因为这个短期内不取出来
 }

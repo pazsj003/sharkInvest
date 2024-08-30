@@ -31,7 +31,7 @@ contract D3VaultStorage is ReentrancyGuard, Ownable {
     uint256 public borrowerCount;
     uint256 internal constant SECONDS_PER_YEAR = 31536000;
     uint256 internal constant DEFAULT_MINIMUM_DTOKEN = 1000;
-
+    uint256 internal constant SECONDS_PER_DAY = 86400;
     mapping(address => uint256) public accrualTimestampMap;
     mapping(address => bool) public allPoolAddrMap;
     mapping(address => address[]) public creatorPoolMap; // user => pool[]
@@ -42,14 +42,6 @@ contract D3VaultStorage is ReentrancyGuard, Ownable {
     mapping(address => bool) public allowedLiquidator;
     mapping(address => mapping(address => uint256)) public liquidationTarget; // pool => (token => amount)
 
-    struct SharkDepositInfo {
-        address dToken;
-        address token;
-        mapping(address => uint256) amount; //每次存入的amount
-        mapping(address => uint256) baseInterest; // 每次的base保底收益率不同
-        mapping(address => uint256) lowInterest; // 每次的最低收益率不同
-        mapping(address => uint256) highInterest;
-    }
     enum rangetype {
         oneWeek,
         TwoWeek,
@@ -57,6 +49,19 @@ contract D3VaultStorage is ReentrancyGuard, Ownable {
         ThreeMonth,
         SixMonth,
         oneYear
+    }
+
+    struct SharkDepositInfo {
+        address dToken;
+        address token;
+        bytes32[] keys;
+        mapping(bytes32 => uint256) amount; //每次存入的amount
+        mapping(bytes32 => uint256) baseInterest; // 每次的base保底收益率不同
+        mapping(bytes32 => uint256) lowInterest; // 每次的最低收益率不同
+        mapping(bytes32 => uint256) highInterest;
+        mapping(bytes32 => uint256) lowPrice;
+        mapping(bytes32 => uint256) highPrice;
+        mapping(bytes32 => uint8) rangetype;
     }
 
     struct AssetInfo {
@@ -115,6 +120,20 @@ contract D3VaultStorage is ReentrancyGuard, Ownable {
         uint256 amount,
         uint256 dTokenAmount
     );
+    event SharkWithdraw(
+        address indexed msgSender,
+        address indexed user,
+        address indexed token,
+        uint256 amount,
+        uint256 dTokenAmount
+    );
+    event SharkDeposit(
+        address indexed user,
+        address indexed token,
+        uint256 amount,
+        uint256 dTokenAmount
+    );
+
     event AddPool(address pool);
     event RemovePool(address pool);
 

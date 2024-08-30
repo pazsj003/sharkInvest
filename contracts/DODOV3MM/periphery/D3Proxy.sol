@@ -228,13 +228,72 @@ contract D3Proxy is IDODOSwapCallback {
         );
     }
 
-     function userSharkDeposit(
-        address user, 
-        address token, 
-        uint256 amount,)external payable {
-    
+    function userSharkDeposit(
+        address user,
+        address token,
+        uint256 amount,
+        uint8 range,
+        uint256 baseInterest,
+        uint256 lowInterestRate,
+        uint256 highInterestRate,
+        uint256 lowPrice,
+        uint256 highPrice // 这里想想要不要用data 代替， 明天先做里面的withdraw 最后搞外面一层
+    ) external payable {
+        uint256 dTokenAmount;
+        if (token == _ETH_ADDRESS_) {
+            require(msg.value == amount, "D3PROXY_PAYMENT_NOT_MATCH");
+            _deposit(msg.sender, _D3_VAULT_, _WETH_, amount);
+            dTokenAmount = ID3Vault(_D3_VAULT_).buySharkDeposit(
+                user,
+                _WETH_,
+                amount,
+                range,
+                baseInterest,
+                lowInterestRate,
+                highInterestRate,
+                lowPrice,
+                highPrice
+            );
+        } else {
+            _deposit(msg.sender, _D3_VAULT_, token, amount);
+            dTokenAmount = ID3Vault(_D3_VAULT_).buySharkDeposit(user, token);
+        }
+        require(
+            dTokenAmount >= minDtokenAmount,
+            "D3PROXY_MIN_DTOKEN_AMOUNT_FAIL"
+        );
+    }
 
-     }
+    function userSharkWithdraw(
+        address to,
+        address token,
+        uint256 dTokenAmount,
+        uint256 originReceiveAmount
+    ) {
+        if (token != _ETH_ADDRESS_) {
+            (address dToken, , , , , , , , , , ) = ID3Vault(_D3_VAULT_)
+                .getAssetInfo(token);
+            _deposit(msg.sender, address(this), dToken, dTokenAmount);
+            amount = ID3Vault(_D3_VAULT_).SharkWithdraw(
+                to,
+                msg.sender,
+                token,
+                dTokenAmount
+            );
+        } else {
+            (address dToken, , , , , , , , , , ) = ID3Vault(_D3_VAULT_)
+                .getAssetInfo(_WETH_);
+            _deposit(msg.sender, address(this), dToken, dTokenAmount);
+            amount = ID3Vault(_D3_VAULT_).SharkWithdraw(
+                address(this),
+                msg.sender,
+                _WETH_,
+                dTokenAmount
+            );
+            _withdrawWETH(to, amount);
+        }
+        require(amount > originReceiveAmount, "D3PROXY_MIN_RECEIVE_FAIL");
+    }
 
     function userWithdraw(
         address to,
