@@ -94,34 +94,25 @@ contract D3VaultFunding is D3VaultStorage {
     function buySharkDeposit(
         address user,
         address token,
-        uint8 range,
         uint256 baseInterest,
         uint256 lowInterestRate,
         uint256 highInterestRate,
         uint256 lowPrice,
-        uint256 highPrice
+        uint256 highPrice,
+        uint256 daysToDeposit
     )
         external
         nonReentrant
         allowedSharkToken(token)
         returns (uint256 dTokenAmount)
     {
+        require(user == msg.sender, "NOT OWNER PROCESSED");
         accrueInterest(token);
         AssetInfo storage info = assetInfo[token];
         uint256 realBalance = IERC20(token).balanceOf(address(this));
         uint256 amount = realBalance - info.balance;
         if (!ID3UserQuota(_USER_QUOTA_).checkQuota(user, token, amount))
             revert Errors.D3VaultExceedQuota();
-        // 钱提前打进去， 但没有利息计算环节， 而且这个资金跟之前的userDeposit 渠道不同
-        addSharkInterest(
-            range,
-            amount,
-            baseInterest,
-            lowInterestRate,
-            highInterestRate,
-            lowPrice,
-            highPrice
-        );
 
         uint256 exchangeRate = _getExchangeRate(token);
         uint256 totalDToken = IDToken(info.dToken).totalSupply();
@@ -144,6 +135,19 @@ contract D3VaultFunding is D3VaultStorage {
         }
 
         info.balance = realBalance;
+        // 钱提前打进去， 但没有利息计算环节， 而且这个资金跟之前的userDeposit 渠道不同
+        addSharkInterest(
+            token,
+            info.dToken,
+            dTokenAmount,
+            amount,
+            baseInterest,
+            lowInterestRate,
+            highInterestRate,
+            lowPrice,
+            highPrice,
+            daysToDeposit
+        );
 
         emit SharkDeposit(user, token, amount, dTokenAmount);
     }
@@ -151,11 +155,11 @@ contract D3VaultFunding is D3VaultStorage {
     function sharkWithdraw(
         address user,
         address token,
-        address token,
         uint256 dTokenAmount,
         uint256 depositTimestamp,
         uint256 depositBlock
     ) external nonReentrant allowedToken(token) returns (uint256 amount) {
+        require(user == msg.sender, "NOT OWNER PROCESSED");
         accrueInterest(token);
 
         AssetInfo storage info = assetInfo[token];
@@ -164,6 +168,7 @@ contract D3VaultFunding is D3VaultStorage {
 
         uint256 amount = caculateFinalSharkInterest(
             token,
+            dTokenAmount,
             depositBlock,
             depositTimestamp
         );
@@ -183,45 +188,58 @@ contract D3VaultFunding is D3VaultStorage {
 
     function caculateFinalSharkInterest(
         address token,
+        address dTokenAmount,
         uint256 depositBlock,
         uint256 depositTimestamp
     ) internal returns (uint256 finalInterest) {
         SharkDepositInfo storage sharkinfo = sharkInfo[token];
-        bytes32 key = getKey(user, depositBlock, depositTimestamp);
-        sharkinfo.amount[key];
-        uint8 range = sharkinfo.rangetype[key];
-        uint256 amount = sharkinfo.amount[key];
-        uint256 baseInterest = sharkinfo.baseInterest[key];
-        uint256 lowInterestRate = sharkinfo.lowInterest[key];
-        uint256 highInterestRate = sharkinfo.highInterest[key];
-        uint256 lowPrice = sharkinfo.lowPrice[key];
-        uint256 highPrice = sharkinfo.highPrice[key];
-        uint256 depositeDays = 0;
-        // range 的类型，   比较现在的 价格，  不同类型的选择不同
-        if (range == 0) depositeDays = 7;
-        else if (range == 1) depositeDays = 14;
-        else if (range == 2) depositeDays = 30;
-        else if (range == 3) depositeDays = 90;
-        else if (range == 4) depositeDays = 180;
-        else if (range == 5) depositeDays = 365;
-        else revert("Invalid range type");
+        bytes32 key = getKey(msg.sender, depositBlock, depositTimestamp);
+        // 获取存款记录
+        DepositRecord storage depositRecord = sharkInfo.depositRecord[
+            msg.sender
+        ][key];
+
+        // 校验时间戳和区块是否匹配
+        require(
+            depositBlock == depositRecord.depositBlock &&
+                depositTimestamp == depositRecord.depositTimeStamp,
+            "DEPOSIT TIME IS NOT MATCH"
+        );
+
+        // 获取存款信息
+        uint256 amount = depositRecord.amount;
+        require(amount != 0, "NO DEPOSIT FOUND");
+        uint256 getdTokenAmount = depositRecord.dTokenAmount;
+        require(getdTokenAmount == dTokenAmount, "NOT ENOUGH DTOKENAMOUT");
+        uint256 baseInterest = depositRecord.baseInterest;
+        uint256 lowInterestRate = depositRecord.lowInterest;
+        uint256 highInterestRate = depositRecord.highInterest;
+        uint256 lowPrice = depositRecord.lowPrice;
+        uint256 highPrice = depositRecord.highPrice;
+        uint256 depositeDays = depositRecord.daysToDeposit;
+
+        // 检查是否满足提款时间要求
         bool passedDay = isTimeDifferenceValid(depositTimestamp, depositeDays);
         require(passedDay, "TIME IS NOT ENOUGH TO WITHDRAW");
-        uint256 CurrentPrice = ID3Oracle(_ORACLE_).getPrice(token);
-        if (CurrentPrice >= lowPrice && CurrentPrice <= highPrice) {
-            // 计算到期年化收益率 到期年化收益率=最小收益率+(结算价格-下限价格)/(上限价格-下限价格)*(最大收益率-最小收益率)
+
+        // 获取当前价格
+        uint256 currentPrice = ID3Oracle(_ORACLE_).getPrice(token);
+
+        uint256 finalInterestRate;
+        if (currentPrice >= lowPrice && currentPrice <= highPrice) {
+            // 计算到期年化收益率: 到期年化收益率 = 最小收益率 + (结算价格 - 下限价格) / (上限价格 - 下限价格) * (最大收益率 - 最小收益率)
             finalInterestRate =
                 lowInterestRate +
-                ((CurrentPrice - lowPrice) /
-                    (highInterestRate - lowInterestRate)) *
+                ((currentPrice - lowPrice) *
+                    (highInterestRate - lowInterestRate)) /
                 (highPrice - lowPrice);
         } else {
             // 如果价格超出区间，使用保底收益率
             finalInterestRate = baseInterest;
         }
-        // 计算最终收益 收益 = 本金 * 到期年化收益率 / 365 * 投资期限
-        uint256 finalInterest = ((amount * finalInterestRate) / 365) *
-            depositeDays;
+
+        // 计算最终收益: 收益 = 本金 * 到期年化收益率 / 365 * 投资期限
+        finalInterest = (amount * finalInterestRate * depositeDays) / 365;
     }
 
     function deleteSharkInfo(
@@ -229,27 +247,31 @@ contract D3VaultFunding is D3VaultStorage {
         uint256 depositBlock,
         uint256 depositTimestamp
     ) internal {
-        SharkDepositInfo storage sharkInfo = sharkInfos[token];
+        SharkDepositInfo storage sharkInfo = sharkDepositInfo[token];
         bytes32 key = getKey(msg.sender, depositBlock, depositTimestamp);
 
-        // 确保键存在于 keys 数组中
-        for (uint256 i = 0; i < sharkInfo.keys.length; i++) {
-            if (sharkInfo.keys[i] == key) {
-                // 删除映射中的数据
-                delete sharkInfo.amount[key];
-                delete sharkInfo.baseInterest[key];
-                delete sharkInfo.lowInterest[key];
-                delete sharkInfo.highInterest[key];
-                delete sharkInfo.lowPrice[key];
-                delete sharkInfo.highPrice[key];
-                delete sharkInfo.rangetype[key];
+        uint256 index = sharkInfo.keyIndex[key];
+        require(index < sharkInfo.keys.length, "KEY NOT FOUND");
 
-                // 从 keys 数组中移除该键
-                sharkInfo.keys[i] = sharkInfo.keys[sharkInfo.keys.length - 1];
-                sharkInfo.keys.pop();
+        // 删除 depositRecord
+        delete sharkInfo.depositRecord[msg.sender][key];
+
+        // 从用户的 key 数组中找到对应的 key 并移除
+        bytes32[] storage userKeys = sharkInfo.userKeys[user];
+        for (uint256 i = 0; i < userKeys.length; i++) {
+            if (userKeys[i] == key) {
+                userKeys[i] = userKeys[userKeys.length - 1]; // 将最后一个 key 移到当前位置
+                userKeys.pop(); // 删除最后一个元素
                 break;
             }
         }
+
+        emit SharkInfoDeleted(
+            msg.sender,
+            token,
+            depositBlock,
+            depositTimestamp
+        );
     }
 
     function isTimeDifferenceValid(
@@ -270,8 +292,111 @@ contract D3VaultFunding is D3VaultStorage {
         }
     }
 
-    function caculateCurrentSharkInterest();
-    function getAvailableSharkInfo();
+    function caculateCurrentSharkInterest(
+        address token,
+        uint256 depositBlock,
+        uint256 depositTimestamp
+    ) external returns (uint256 finalInterest) {
+        SharkDepositInfo storage sharkInfo = sharkDepositInfo[token];
+        bytes32 key = getKey(msg.sender, depositBlock, depositTimestamp);
+
+        // 获取存款记录
+        DepositRecord storage depositRecord = sharkInfo.depositRecord[
+            msg.sender
+        ][key];
+
+        // 校验存款的时间戳和区块
+        require(
+            depositBlock == depositRecord.depositBlock &&
+                depositTimestamp == depositRecord.depositTimeStamp,
+            "DEPOSIT TIME IS NOT MATCH"
+        );
+
+        uint256 amount = depositRecord.amount;
+        require(amount != 0, "DONT HAVE THIS DEPOSIT");
+
+        uint256 baseInterest = depositRecord.baseInterest;
+        uint256 lowInterestRate = depositRecord.lowInterest;
+        uint256 highInterestRate = depositRecord.highInterest;
+        uint256 lowPrice = depositRecord.lowPrice;
+        uint256 highPrice = depositRecord.highPrice;
+        uint256 depositeDays = depositRecord.daysToDeposit;
+
+        // 检查是否超过了规定的天数
+        bool passedDay = isTimeDifferenceValid(
+            depositRecord.depositTimeStamp,
+            depositeDays
+        );
+        if (!passedDay) {
+            depositDays =
+                (block.timestamp - depositRecord.depositTimeStamp) /
+                SECONDS_PER_DAY;
+        }
+
+        uint256 currentPrice = ID3Oracle(_ORACLE_).getPrice(token);
+        uint256 finalInterestRate;
+
+        if (currentPrice >= lowPrice && currentPrice <= highPrice) {
+            // 计算到期年化收益率 到期年化收益率=最小收益率+(结算价格-下限价格)/(上限价格-下限价格)*(最大收益率-最小收益率)
+            finalInterestRate =
+                lowInterestRate +
+                ((currentPrice - lowPrice) *
+                    (highInterestRate - lowInterestRate)) /
+                (highPrice - lowPrice);
+        } else {
+            // 如果价格超出区间，使用保底收益率
+            finalInterestRate = baseInterest;
+        }
+
+        // 计算最终收益：收益 = 本金 * 到期年化收益率 / 365 * 投资期限
+        finalInterest = (amount * finalInterestRate * depositeDays) / 365;
+    }
+    function getAvailableWithdrawSharkInfo(
+        address token,
+        address user
+    ) external view returns (DepositRecord[] memory) {
+        SharkDepositInfo storage sharkInfo = sharkDepositInfo[token];
+        uint256 currentTime = block.timestamp;
+
+        // 获取用户的所有存款 keys
+        bytes32[] storage userKeys = sharkInfo.userKeys[user];
+        uint256 recordCount = userKeys.length;
+
+        // 创建临时数组存储符合条件的记录
+        DepositRecord[] memory availableRecords = new DepositRecord[](
+            recordCount
+        );
+        if (recordCount == 0) return availableRecords;
+        uint256 availableCount = 0;
+
+        // 遍历用户的所有存款 keys
+        for (uint256 i = 0; i < userKeys.length; i++) {
+            bytes32 key = userKeys[i];
+            DepositRecord storage deposit = sharkInfo.depositRecord[user][key];
+
+            // 计算存款的时间差，检查是否符合提款条件
+            uint256 depositDays = (currentTime -
+                depositRecord.depositTimeStamp) / SECONDS_PER_DAY;
+
+            if (depositDays >= deposit.daysToDeposit) {
+                availableRecords[availableCount] = deposit;
+                availableCount++;
+            }
+        }
+        if (availableCount == 0) return availableRecords;
+
+        // 创建一个数组，大小为符合条件的记录数量
+        DepositRecord[] memory finalRecords = new DepositRecord[](
+            availableCount
+        );
+
+        // 将符合条件的存款记录复制到最终数组中
+        for (uint256 j = 0; j < availableCount; j++) {
+            finalRecords[j] = availableRecords[j];
+        }
+
+        return finalRecords;
+    }
 
     // ---------- Pool Fund ----------
     function poolBorrow(
@@ -476,13 +601,16 @@ contract D3VaultFunding is D3VaultStorage {
     }
 
     function addSharkInterest(
-        uint8 range,
+        address token, // 需要传入token作为参数
+        address dToken,
+        uint256 dTokenAmount,
         uint256 amount,
         uint256 baseInterest,
         uint256 lowInterestRate,
         uint256 highInterestRate,
         uint256 lowPrice,
-        uint256 highPrice
+        uint256 highPrice,
+        uint256 daysToDeposit
     ) internal {
         SharkDepositInfo storage sharkinfo = sharkDepositInfo[token];
 
@@ -490,13 +618,24 @@ contract D3VaultFunding is D3VaultStorage {
         uint256 currentBlock = block.number;
         bytes32 key = getKey(msg.sender, currentBlock, currentTime);
         sharkinfo.keys.push(key);
-        sharkinfo.amount[key] = amount;
-        sharkinfo.rangetype[key] = range;
-        sharkinfo.baseInterest[key] = baseInterest;
-        sharkinfo.lowInterest[key] = lowInterestRate;
-        sharkinfo.highInterest[key] = highInterestRate;
-        sharkinfo.lowPrice[key] = lowPrice;
-        sharkinfo.highPrice[key] = highPrice;
+        sharkInfo.keyIndex[key] = sharkInfo.keys.length - 1;
+
+        sharkInfo.depositRecord[msg.sender][key] = DepositRecord({
+            user: msg.sender,
+            dToken: dToken,
+            dTokenAmount: dTokenAmount,
+            amount: amount,
+            baseInterest: baseInterest,
+            lowInterest: lowInterestRate,
+            highInterest: highInterestRate,
+            lowPrice: lowPrice,
+            highPrice: highPrice,
+            daysToDeposit: daysToDeposit,
+            depositTimeStamp: currentTime,
+            depositBlock: currentBlock
+        });
+        // 将 key 添加到用户的 key 列表中
+        sharkInfo.userKeys[user].push(key);
     }
     function getKey(
         address user,

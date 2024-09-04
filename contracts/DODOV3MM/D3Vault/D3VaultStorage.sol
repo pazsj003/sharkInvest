@@ -41,39 +41,30 @@ contract D3VaultStorage is ReentrancyGuard, Ownable {
     mapping(address => bool) public allowedRouter;
     mapping(address => bool) public allowedLiquidator;
     mapping(address => mapping(address => uint256)) public liquidationTarget; // pool => (token => amount)
-
-    enum rangetype {
-        oneWeek,
-        TwoWeek,
-        oneMonth,
-        ThreeMonth,
-        SixMonth,
-        oneYear
+    struct DepositRecord {
+        address user;
+        address dToken;
+        uint256 dTokenAmount;
+        uint256 amount; // 每次存入的amount
+        uint256 baseInterest; // 每次的base保底收益率不同
+        uint256 lowInterest; // 每次的最低收益率不同
+        uint256 highInterest;
+        uint256 lowPrice;
+        uint256 highPrice;
+        uint256 daysToDeposit;
+        uint256 depositTimeStamp;
+        uint256 depositBlock;
     }
 
     struct SharkDepositInfo {
-        address dToken;
         address token;
-        bytes32[] keys;
-        mapping(bytes32 => uint256) amount; //每次存入的amount
-        mapping(bytes32 => uint256) baseInterest; // 每次的base保底收益率不同
-        mapping(bytes32 => uint256) lowInterest; // 每次的最低收益率不同
-        mapping(bytes32 => uint256) highInterest;
-        mapping(bytes32 => uint256) lowPrice;
-        mapping(bytes32 => uint256) highPrice;
-        mapping(bytes32 => uint8) rangetype;
+        mapping(address => mapping(bytes32 => DepositRecord)) depositRecord;
+        mapping(address => bytes32[]) userKeys; // 记录每个用户的存款 key
     }
 
     struct AssetInfo {
         address dToken;
         uint256 balance;
-        //shark Info;
-        // uint256 baseInterest;
-        // uint256 lowInterestRate;
-        // uint256 highInterestRate;
-        // uint256 lowPrice;
-        // uint256 highPrice;
-
         // borrow info
         uint256 totalBorrows;
         uint256 borrowIndex;
@@ -132,6 +123,12 @@ contract D3VaultStorage is ReentrancyGuard, Ownable {
         address indexed token,
         uint256 amount,
         uint256 dTokenAmount
+    );
+    event SharkInfoDeleted(
+        address indexed user,
+        address indexed token,
+        uint256 depositBlock,
+        uint256 depositTimestamp
     );
 
     event AddPool(address pool);
