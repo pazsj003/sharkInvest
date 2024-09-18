@@ -107,34 +107,38 @@ contract D3VaultFunding is D3VaultStorage {
         returns (uint256 dTokenAmount)
     {
         require(user == msg.sender, "NOT OWNER PROCESSED");
+
         accrueInterest(token);
         AssetInfo storage info = assetInfo[token];
+
         uint256 realBalance = IERC20(token).balanceOf(address(this));
         uint256 amount = realBalance - info.balance;
-        if (!ID3UserQuota(_USER_QUOTA_).checkQuota(user, token, amount))
-            revert Errors.D3VaultExceedQuota();
+        {
+            if (!ID3UserQuota(_USER_QUOTA_).checkQuota(user, token, amount))
+                revert Errors.D3VaultExceedQuota();
 
-        uint256 exchangeRate = _getExchangeRate(token);
-        uint256 totalDToken = IDToken(info.dToken).totalSupply();
-        if (totalDToken.mul(exchangeRate) + amount > info.maxDepositAmount)
-            revert Errors.D3VaultExceedMaxDepositAmount();
-        dTokenAmount = amount.div(exchangeRate);
+            uint256 exchangeRate = _getExchangeRate(token);
+            uint256 totalDToken = IDToken(info.dToken).totalSupply();
+            if (totalDToken.mul(exchangeRate) + amount > info.maxDepositAmount)
+                revert Errors.D3VaultExceedMaxDepositAmount();
+            dTokenAmount = amount.div(exchangeRate);
 
-        if (totalDToken == 0) {
-            // permanently lock a very small amount of dTokens into address(1), which reduces potential issues with rounding,
-            // and also prevents the pool from ever being fully drained
-            if (dTokenAmount <= DEFAULT_MINIMUM_DTOKEN)
-                revert Errors.D3VaultMinimumDToken();
-            IDToken(info.dToken).mint(address(1), DEFAULT_MINIMUM_DTOKEN);
-            IDToken(info.dToken).mint(
-                user,
-                dTokenAmount - DEFAULT_MINIMUM_DTOKEN
-            );
-        } else {
-            IDToken(info.dToken).mint(user, dTokenAmount);
+            if (totalDToken == 0) {
+                // permanently lock a very small amount of dTokens into address(1), which reduces potential issues with rounding,
+                // and also prevents the pool from ever being fully drained
+                if (dTokenAmount <= DEFAULT_MINIMUM_DTOKEN)
+                    revert Errors.D3VaultMinimumDToken();
+                IDToken(info.dToken).mint(address(1), DEFAULT_MINIMUM_DTOKEN);
+                IDToken(info.dToken).mint(
+                    user,
+                    dTokenAmount - DEFAULT_MINIMUM_DTOKEN
+                );
+            } else {
+                IDToken(info.dToken).mint(user, dTokenAmount);
+            }
+
+            info.balance = realBalance;
         }
-
-        info.balance = realBalance;
         // 钱提前打进去， 但没有利息计算环节， 而且这个资金跟之前的userDeposit 渠道不同
         addSharkInterest(
             token,
@@ -148,255 +152,255 @@ contract D3VaultFunding is D3VaultStorage {
             highPrice,
             daysToDeposit
         );
-
         emit SharkDeposit(user, token, amount, dTokenAmount);
     }
 
-    function sharkWithdraw(
-        address user,
-        address token,
-        uint256 dTokenAmount,
-        uint256 depositTimestamp,
-        uint256 depositBlock
-    ) external nonReentrant allowedToken(token) returns (uint256 amount) {
-        require(user == msg.sender, "NOT OWNER PROCESSED");
-        accrueInterest(token);
+    // function sharkWithdraw(
+    //     address to,
+    //     address user,
+    //     address token,
+    //     uint256 dTokenAmount,
+    //     uint256 depositTimestamp,
+    //     uint256 depositBlock
+    // ) external nonReentrant allowedToken(token) returns (uint256 amount) {
+    //     require(user == msg.sender, "NOT OWNER PROCESSED");
+    //     accrueInterest(token);
 
-        AssetInfo storage info = assetInfo[token];
-        if (dTokenAmount > IDToken(info.dToken).balanceOf(msg.sender))
-            revert Errors.D3VaultDTokenBalanceNotEnough();
+    //     AssetInfo storage info = assetInfo[token];
+    //     if (dTokenAmount > IDToken(info.dToken).balanceOf(msg.sender))
+    //         revert Errors.D3VaultDTokenBalanceNotEnough();
 
-        uint256 amount = caculateFinalSharkInterest(
-            token,
-            dTokenAmount,
-            depositBlock,
-            depositTimestamp
-        );
-        deleteSharkInfo(token, depositBlock, depositTimestamp);
+    //     amount = caculateFinalSharkInterest(
+    //         token,
+    //         dTokenAmount,
+    //         depositBlock,
+    //         depositTimestamp
+    //     );
+    //     deleteSharkInfo(token, depositBlock, depositTimestamp);
 
-        IDToken(info.dToken).burn(msg.sender, dTokenAmount);
-        IERC20(token).safeTransfer(to, amount);
-        info.balance = info.balance - amount;
+    //     IDToken(info.dToken).burn(msg.sender, dTokenAmount);
+    //     IERC20(token).safeTransfer(to, amount);
+    //     info.balance = info.balance - amount;
 
-        // used for calculate user withdraw amount
-        // this function could be called from d3Proxy, so we need "user" param
-        // In the meantime, some users may hope to use this function directly,
-        // to prevent these users fill "user" param with wrong addresses,
-        // we use "msg.sender" param to check.
-        emit SharkWithdraw(msg.sender, user, token, amount, dTokenAmount);
-    }
+    //     // used for calculate user withdraw amount
+    //     // this function could be called from d3Proxy, so we need "user" param
+    //     // In the meantime, some users may hope to use this function directly,
+    //     // to prevent these users fill "user" param with wrong addresses,
+    //     // we use "msg.sender" param to check.
+    //     emit SharkWithdraw(msg.sender, user, token, amount, dTokenAmount);
+    // }
 
-    function caculateFinalSharkInterest(
-        address token,
-        address dTokenAmount,
-        uint256 depositBlock,
-        uint256 depositTimestamp
-    ) internal returns (uint256 finalInterest) {
-        SharkDepositInfo storage sharkinfo = sharkInfo[token];
-        bytes32 key = getKey(msg.sender, depositBlock, depositTimestamp);
-        // 获取存款记录
-        DepositRecord storage depositRecord = sharkInfo.depositRecord[
-            msg.sender
-        ][key];
+    // function caculateFinalSharkInterest(
+    //     address token,
+    //     uint256 dTokenAmount,
+    //     uint256 depositBlock,
+    //     uint256 depositTimestamp
+    // ) internal view returns (uint256 finalInterest) {
+    //     SharkDepositInfo storage sharkInfo = sharkDepositInfo[token];
+    //     bytes32 key = getKey(msg.sender, depositBlock, depositTimestamp);
+    //     // 获取存款记录
+    //     DepositRecord storage getDepositRecord = sharkInfo.depositRecord[
+    //         msg.sender
+    //     ][key];
 
-        // 校验时间戳和区块是否匹配
-        require(
-            depositBlock == depositRecord.depositBlock &&
-                depositTimestamp == depositRecord.depositTimeStamp,
-            "DEPOSIT TIME IS NOT MATCH"
-        );
+    //     // 校验时间戳和区块是否匹配
+    //     require(
+    //         depositBlock == getDepositRecord.depositBlock &&
+    //             depositTimestamp == getDepositRecord.depositTimeStamp,
+    //         "DEPOSIT TIME IS NOT MATCH"
+    //     );
 
-        // 获取存款信息
-        uint256 amount = depositRecord.amount;
-        require(amount != 0, "NO DEPOSIT FOUND");
-        uint256 getdTokenAmount = depositRecord.dTokenAmount;
-        require(getdTokenAmount == dTokenAmount, "NOT ENOUGH DTOKENAMOUT");
-        uint256 baseInterest = depositRecord.baseInterest;
-        uint256 lowInterestRate = depositRecord.lowInterest;
-        uint256 highInterestRate = depositRecord.highInterest;
-        uint256 lowPrice = depositRecord.lowPrice;
-        uint256 highPrice = depositRecord.highPrice;
-        uint256 depositeDays = depositRecord.daysToDeposit;
+    //     // 获取存款信息
+    //     uint256 amount = getDepositRecord.amount;
+    //     require(amount != 0, "NO DEPOSIT FOUND");
+    //     uint256 getdTokenAmount = getDepositRecord.dTokenAmount;
+    //     require(getdTokenAmount == dTokenAmount, "NOT ENOUGH DTOKENAMOUT");
+    //     uint256 baseInterest = getDepositRecord.baseInterest;
+    //     uint256 lowInterestRate = getDepositRecord.lowInterest;
+    //     uint256 highInterestRate = getDepositRecord.highInterest;
+    //     uint256 lowPrice = getDepositRecord.lowPrice;
+    //     uint256 highPrice = getDepositRecord.highPrice;
+    //     uint256 depositDays = getDepositRecord.daysToDeposit;
 
-        // 检查是否满足提款时间要求
-        bool passedDay = isTimeDifferenceValid(depositTimestamp, depositeDays);
-        require(passedDay, "TIME IS NOT ENOUGH TO WITHDRAW");
+    //     // 检查是否满足提款时间要求
+    //     bool passedDay = isTimeDifferenceValid(depositTimestamp, depositDays);
+    //     require(passedDay, "TIME IS NOT ENOUGH TO WITHDRAW");
 
-        // 获取当前价格
-        uint256 currentPrice = ID3Oracle(_ORACLE_).getPrice(token);
+    //     // 获取当前价格
+    //     uint256 currentPrice = ID3Oracle(_ORACLE_).getPrice(token);
 
-        uint256 finalInterestRate;
-        if (currentPrice >= lowPrice && currentPrice <= highPrice) {
-            // 计算到期年化收益率: 到期年化收益率 = 最小收益率 + (结算价格 - 下限价格) / (上限价格 - 下限价格) * (最大收益率 - 最小收益率)
-            finalInterestRate =
-                lowInterestRate +
-                ((currentPrice - lowPrice) *
-                    (highInterestRate - lowInterestRate)) /
-                (highPrice - lowPrice);
-        } else {
-            // 如果价格超出区间，使用保底收益率
-            finalInterestRate = baseInterest;
-        }
+    //     uint256 finalInterestRate;
+    //     if (currentPrice >= lowPrice && currentPrice <= highPrice) {
+    //         // 计算到期年化收益率: 到期年化收益率 = 最小收益率 + (结算价格 - 下限价格) / (上限价格 - 下限价格) * (最大收益率 - 最小收益率)
+    //         finalInterestRate =
+    //             lowInterestRate +
+    //             ((currentPrice - lowPrice) *
+    //                 (highInterestRate - lowInterestRate)) /
+    //             (highPrice - lowPrice);
+    //     } else {
+    //         // 如果价格超出区间，使用保底收益率
+    //         finalInterestRate = baseInterest;
+    //     }
 
-        // 计算最终收益: 收益 = 本金 * 到期年化收益率 / 365 * 投资期限
-        finalInterest = (amount * finalInterestRate * depositeDays) / 365;
-    }
+    //     // 计算最终收益: 收益 = 本金 * 到期年化收益率 / 365 * 投资期限
+    //     finalInterest = (amount * finalInterestRate * depositDays) / 365;
+    // }
 
-    function deleteSharkInfo(
-        address token,
-        uint256 depositBlock,
-        uint256 depositTimestamp
-    ) internal {
-        SharkDepositInfo storage sharkInfo = sharkDepositInfo[token];
-        bytes32 key = getKey(msg.sender, depositBlock, depositTimestamp);
+    // function deleteSharkInfo(
+    //     address token,
+    //     uint256 depositBlock,
+    //     uint256 depositTimestamp
+    // ) internal {
+    //     SharkDepositInfo storage sharkInfo = sharkDepositInfo[token];
+    //     bytes32 key = getKey(msg.sender, depositBlock, depositTimestamp);
 
-        uint256 index = sharkInfo.keyIndex[key];
-        require(index < sharkInfo.keys.length, "KEY NOT FOUND");
+    //     // 删除 depositRecord
+    //     delete sharkInfo.depositRecord[msg.sender][key];
 
-        // 删除 depositRecord
-        delete sharkInfo.depositRecord[msg.sender][key];
+    //     // 从用户的 key 数组中找到对应的 key 并移除
+    //     bytes32[] storage userKeys = sharkInfo.userKeys[msg.sender];
+    //     for (uint256 i = 0; i < userKeys.length; i++) {
+    //         if (userKeys[i] == key) {
+    //             userKeys[i] = userKeys[userKeys.length - 1]; // 将最后一个 key 移到当前位置
+    //             userKeys.pop(); // 删除最后一个元素
+    //             break;
+    //         }
+    //     }
 
-        // 从用户的 key 数组中找到对应的 key 并移除
-        bytes32[] storage userKeys = sharkInfo.userKeys[user];
-        for (uint256 i = 0; i < userKeys.length; i++) {
-            if (userKeys[i] == key) {
-                userKeys[i] = userKeys[userKeys.length - 1]; // 将最后一个 key 移到当前位置
-                userKeys.pop(); // 删除最后一个元素
-                break;
-            }
-        }
+    //     emit SharkInfoDeleted(
+    //         msg.sender,
+    //         token,
+    //         depositBlock,
+    //         depositTimestamp
+    //     );
+    // }
 
-        emit SharkInfoDeleted(
-            msg.sender,
-            token,
-            depositBlock,
-            depositTimestamp
-        );
-    }
+    // function isTimeDifferenceValid(
+    //     uint256 pastTimestamp,
+    //     uint256 depositDays
+    // ) public view returns (bool) {
+    //     // 获取当前的区块时间戳
+    //     uint256 currentTimestamp = block.timestamp;
 
-    function isTimeDifferenceValid(
-        uint256 pastTimestamp,
-        uint256 depositeDays
-    ) public view returns (bool) {
-        // 获取当前的区块时间戳
-        uint256 currentTimestamp = block.timestamp;
+    //     // 计算时间差
+    //     uint256 timeDifference = currentTimestamp - pastTimestamp;
 
-        // 计算时间差
-        uint256 timeDifference = currentTimestamp - pastTimestamp;
+    //     // 检查时间差是否大于等于指定的天数（以秒为单位）
+    //     if (timeDifference >= depositDays * SECONDS_PER_DAY) {
+    //         return true;
+    //     } else {
+    //         return false;
+    //     }
+    // }
 
-        // 检查时间差是否大于等于指定的天数（以秒为单位）
-        if (timeDifference >= depositeDays * SECONDS_PER_DAY) {
-            return true;
-        } else {
-            return false;
-        }
-    }
+    // function caculateCurrentSharkInterest(
+    //     address token,
+    //     uint256 depositBlock,
+    //     uint256 depositTimestamp
+    // ) external view returns (uint256 finalInterest) {
+    //     SharkDepositInfo storage sharkInfo = sharkDepositInfo[token];
+    //     bytes32 key = getKey(msg.sender, depositBlock, depositTimestamp);
 
-    function caculateCurrentSharkInterest(
-        address token,
-        uint256 depositBlock,
-        uint256 depositTimestamp
-    ) external returns (uint256 finalInterest) {
-        SharkDepositInfo storage sharkInfo = sharkDepositInfo[token];
-        bytes32 key = getKey(msg.sender, depositBlock, depositTimestamp);
+    //     // 获取存款记录
+    //     DepositRecord storage getDepositRecord = sharkInfo.depositRecord[
+    //         msg.sender
+    //     ][key];
 
-        // 获取存款记录
-        DepositRecord storage depositRecord = sharkInfo.depositRecord[
-            msg.sender
-        ][key];
+    //     // 校验存款的时间戳和区块
+    //     require(
+    //         depositBlock == getDepositRecord.depositBlock &&
+    //             depositTimestamp == getDepositRecord.depositTimeStamp,
+    //         "DEPOSIT TIME IS NOT MATCH"
+    //     );
 
-        // 校验存款的时间戳和区块
-        require(
-            depositBlock == depositRecord.depositBlock &&
-                depositTimestamp == depositRecord.depositTimeStamp,
-            "DEPOSIT TIME IS NOT MATCH"
-        );
+    //     uint256 amount = getDepositRecord.amount;
+    //     require(amount != 0, "DONT HAVE THIS DEPOSIT");
 
-        uint256 amount = depositRecord.amount;
-        require(amount != 0, "DONT HAVE THIS DEPOSIT");
+    //     uint256 baseInterest = getDepositRecord.baseInterest;
+    //     uint256 lowInterestRate = getDepositRecord.lowInterest;
+    //     uint256 highInterestRate = getDepositRecord.highInterest;
+    //     uint256 lowPrice = getDepositRecord.lowPrice;
+    //     uint256 highPrice = getDepositRecord.highPrice;
+    //     uint256 depositDays = getDepositRecord.daysToDeposit;
 
-        uint256 baseInterest = depositRecord.baseInterest;
-        uint256 lowInterestRate = depositRecord.lowInterest;
-        uint256 highInterestRate = depositRecord.highInterest;
-        uint256 lowPrice = depositRecord.lowPrice;
-        uint256 highPrice = depositRecord.highPrice;
-        uint256 depositeDays = depositRecord.daysToDeposit;
+    //     // 检查是否超过了规定的天数
+    //     bool passedDay = isTimeDifferenceValid(
+    //         getDepositRecord.depositTimeStamp,
+    //         depositDays
+    //     );
+    //     if (!passedDay) {
+    //         depositDays =
+    //             (block.timestamp - getDepositRecord.depositTimeStamp) /
+    //             SECONDS_PER_DAY;
+    //     }
 
-        // 检查是否超过了规定的天数
-        bool passedDay = isTimeDifferenceValid(
-            depositRecord.depositTimeStamp,
-            depositeDays
-        );
-        if (!passedDay) {
-            depositDays =
-                (block.timestamp - depositRecord.depositTimeStamp) /
-                SECONDS_PER_DAY;
-        }
+    //     uint256 currentPrice = ID3Oracle(_ORACLE_).getPrice(token);
+    //     uint256 finalInterestRate;
 
-        uint256 currentPrice = ID3Oracle(_ORACLE_).getPrice(token);
-        uint256 finalInterestRate;
+    //     if (currentPrice >= lowPrice && currentPrice <= highPrice) {
+    //         // 计算到期年化收益率 到期年化收益率=最小收益率+(结算价格-下限价格)/(上限价格-下限价格)*(最大收益率-最小收益率)
+    //         finalInterestRate =
+    //             lowInterestRate +
+    //             ((currentPrice - lowPrice) *
+    //                 (highInterestRate - lowInterestRate)) /
+    //             (highPrice - lowPrice);
+    //     } else {
+    //         // 如果价格超出区间，使用保底收益率
+    //         finalInterestRate = baseInterest;
+    //     }
 
-        if (currentPrice >= lowPrice && currentPrice <= highPrice) {
-            // 计算到期年化收益率 到期年化收益率=最小收益率+(结算价格-下限价格)/(上限价格-下限价格)*(最大收益率-最小收益率)
-            finalInterestRate =
-                lowInterestRate +
-                ((currentPrice - lowPrice) *
-                    (highInterestRate - lowInterestRate)) /
-                (highPrice - lowPrice);
-        } else {
-            // 如果价格超出区间，使用保底收益率
-            finalInterestRate = baseInterest;
-        }
+    //     // 计算最终收益：收益 = 本金 * 到期年化收益率 / 365 * 投资期限
+    //     finalInterest = (amount * finalInterestRate * depositDays) / 365;
+    // }
 
-        // 计算最终收益：收益 = 本金 * 到期年化收益率 / 365 * 投资期限
-        finalInterest = (amount * finalInterestRate * depositeDays) / 365;
-    }
-    function getAvailableWithdrawSharkInfo(
-        address token,
-        address user
-    ) external view returns (DepositRecord[] memory) {
-        SharkDepositInfo storage sharkInfo = sharkDepositInfo[token];
-        uint256 currentTime = block.timestamp;
+    // function getAvailableWithdrawSharkInfo(
+    //     address token,
+    //     address user
+    // ) external view returns (DepositRecord[] memory) {
+    //     SharkDepositInfo storage sharkInfo = sharkDepositInfo[token];
+    //     uint256 currentTime = block.timestamp;
 
-        // 获取用户的所有存款 keys
-        bytes32[] storage userKeys = sharkInfo.userKeys[user];
-        uint256 recordCount = userKeys.length;
+    //     // 获取用户的所有存款 keys
+    //     bytes32[] storage userKeys = sharkInfo.userKeys[user];
+    //     uint256 recordCount = userKeys.length;
 
-        // 创建临时数组存储符合条件的记录
-        DepositRecord[] memory availableRecords = new DepositRecord[](
-            recordCount
-        );
-        if (recordCount == 0) return availableRecords;
-        uint256 availableCount = 0;
+    //     // 创建临时数组存储符合条件的记录
+    //     DepositRecord[] memory availableRecords = new DepositRecord[](
+    //         recordCount
+    //     );
+    //     if (recordCount == 0) return availableRecords;
+    //     uint256 availableCount = 0;
 
-        // 遍历用户的所有存款 keys
-        for (uint256 i = 0; i < userKeys.length; i++) {
-            bytes32 key = userKeys[i];
-            DepositRecord storage deposit = sharkInfo.depositRecord[user][key];
+    //     // 遍历用户的所有存款 keys
+    //     for (uint256 i = 0; i < userKeys.length; i++) {
+    //         bytes32 key = userKeys[i];
+    //         DepositRecord storage getDepositRecord = sharkInfo.depositRecord[
+    //             user
+    //         ][key];
 
-            // 计算存款的时间差，检查是否符合提款条件
-            uint256 depositDays = (currentTime -
-                depositRecord.depositTimeStamp) / SECONDS_PER_DAY;
+    //         // 计算存款的时间差，检查是否符合提款条件
+    //         uint256 depositDays = (currentTime -
+    //             getDepositRecord.depositTimeStamp) / SECONDS_PER_DAY;
 
-            if (depositDays >= deposit.daysToDeposit) {
-                availableRecords[availableCount] = deposit;
-                availableCount++;
-            }
-        }
-        if (availableCount == 0) return availableRecords;
+    //         if (depositDays >= getDepositRecord.daysToDeposit) {
+    //             availableRecords[availableCount] = getDepositRecord;
+    //             availableCount++;
+    //         }
+    //     }
+    //     if (availableCount == 0) return availableRecords;
 
-        // 创建一个数组，大小为符合条件的记录数量
-        DepositRecord[] memory finalRecords = new DepositRecord[](
-            availableCount
-        );
+    //     // 创建一个数组，大小为符合条件的记录数量
+    //     DepositRecord[] memory finalRecords = new DepositRecord[](
+    //         availableCount
+    //     );
 
-        // 将符合条件的存款记录复制到最终数组中
-        for (uint256 j = 0; j < availableCount; j++) {
-            finalRecords[j] = availableRecords[j];
-        }
+    //     // 将符合条件的存款记录复制到最终数组中
+    //     for (uint256 j = 0; j < availableCount; j++) {
+    //         finalRecords[j] = availableRecords[j];
+    //     }
 
-        return finalRecords;
-    }
+    //     return finalRecords;
+    // }
 
     // ---------- Pool Fund ----------
     function poolBorrow(
@@ -612,13 +616,12 @@ contract D3VaultFunding is D3VaultStorage {
         uint256 highPrice,
         uint256 daysToDeposit
     ) internal {
-        SharkDepositInfo storage sharkinfo = sharkDepositInfo[token];
+        SharkDepositInfo storage sharkInfo = sharkDepositInfo[token];
 
         uint256 currentTime = block.timestamp;
         uint256 currentBlock = block.number;
         bytes32 key = getKey(msg.sender, currentBlock, currentTime);
-        sharkinfo.keys.push(key);
-        sharkInfo.keyIndex[key] = sharkInfo.keys.length - 1;
+        sharkInfo.userKeys[msg.sender].push(key);
 
         sharkInfo.depositRecord[msg.sender][key] = DepositRecord({
             user: msg.sender,
@@ -635,13 +638,14 @@ contract D3VaultFunding is D3VaultStorage {
             depositBlock: currentBlock
         });
         // 将 key 添加到用户的 key 列表中
-        sharkInfo.userKeys[user].push(key);
+        sharkInfo.userKeys[msg.sender].push(key);
     }
+
     function getKey(
         address user,
         uint256 currentBlock,
         uint256 currentTime
-    ) internal view returns (bytes32) {
+    ) internal pure returns (bytes32) {
         return keccak256(abi.encodePacked(user, currentBlock, currentTime));
     }
 

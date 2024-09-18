@@ -11,7 +11,8 @@ contract D3Vault is D3VaultFunding, D3VaultLiquidation {
     // ---------- Setting ----------
 
     function addD3PoolByFactory(address pool) external onlyFactory {
-        if (allPoolAddrMap[pool] == true) revert Errors.D3VaultPoolAlreadyAdded();
+        if (allPoolAddrMap[pool] == true)
+            revert Errors.D3VaultPoolAlreadyAdded();
         allPoolAddrMap[pool] = true;
         address creator = ID3MM(pool)._CREATOR_();
         creatorPoolMap[creator].push(pool);
@@ -19,7 +20,8 @@ contract D3Vault is D3VaultFunding, D3VaultLiquidation {
     }
 
     function addD3Pool(address pool) external onlyOwner {
-        if (allPoolAddrMap[pool] == true) revert Errors.D3VaultPoolAlreadyAdded();
+        if (allPoolAddrMap[pool] == true)
+            revert Errors.D3VaultPoolAlreadyAdded();
         allPoolAddrMap[pool] = true;
         address creator = ID3MM(pool)._CREATOR_();
         creatorPoolMap[creator].push(pool);
@@ -38,7 +40,8 @@ contract D3Vault is D3VaultFunding, D3VaultLiquidation {
     /// @notice if the pool doesn't have borrows, we just need two steps:
     /// @notice removeD3Pool() -> finishPoolRemove()
     function removeD3Pool(address pool) external onlyOwner {
-        if (_PENDING_REMOVE_POOL_ != address(0)) revert Errors.D3VaultHasPoolPendingRemove();
+        if (_PENDING_REMOVE_POOL_ != address(0))
+            revert Errors.D3VaultHasPoolPendingRemove();
         if (allPoolAddrMap[pool] == false) revert Errors.D3VaultPoolNotAdded();
         ID3MM(pool).startLiquidation();
 
@@ -150,15 +153,11 @@ contract D3Vault is D3VaultFunding, D3VaultLiquidation {
         uint256 maxCollateral,
         uint256 collateralWeight,
         uint256 debtWeight,
-        uint256 reserveFactor,
-        // uint256 baseInterest,
-        // uint256 lowInterestRate,
-        // uint256 highInterestRate,
-        // uint256 lowPrice,
-        // uint256 highPrice,
+        uint256 reserveFactor
     ) external onlyOwner {
         if (tokens[token]) revert Errors.D3VaultTokenAlreadyExist();
-        if (collateralWeight >= 1e18 || debtWeight <= 1e18) revert Errors.D3VaultWrongWeight();
+        if (collateralWeight >= 1e18 || debtWeight <= 1e18)
+            revert Errors.D3VaultWrongWeight();
         if (reserveFactor >= 1e18) revert Errors.D3VaultWrongReserveFactor();
         tokens[token] = true;
         tokenList.push(token);
@@ -172,11 +171,33 @@ contract D3Vault is D3VaultFunding, D3VaultLiquidation {
         info.maxCollateralAmount = maxCollateral;
         info.collateralWeight = collateralWeight;
         info.debtWeight = debtWeight;
-        // info.baseInterest = baseInterest;
-        // info.lowInterestRate = lowInterestRate;
-        // info.highInterestRate = highInterestRate;
-        // info.lowPrice = lowPrice;
-        // info.highPrice = highPrice;
+        emit AddToken(token);
+    }
+
+    function addNewsharkToken(
+        address token,
+        uint256 maxDeposit,
+        uint256 maxCollateral,
+        uint256 collateralWeight,
+        uint256 debtWeight,
+        uint256 reserveFactor
+    ) external onlyOwner {
+        if (sharkToken[token]) revert Errors.D3VaultTokenAlreadyExist();
+        if (collateralWeight >= 1e18 || debtWeight <= 1e18)
+            revert Errors.D3VaultWrongWeight();
+        if (reserveFactor >= 1e18) revert Errors.D3VaultWrongReserveFactor();
+        sharkToken[token] = true;
+        sharkTokenList.push(token);
+        address dToken = createDToken(token);
+        AssetInfo storage info = assetInfo[token];
+        info.dToken = dToken;
+        info.reserveFactor = reserveFactor;
+        info.borrowIndex = 1e18;
+        info.accrualTime = block.timestamp;
+        info.maxDepositAmount = maxDeposit;
+        info.maxCollateralAmount = maxCollateral;
+        info.collateralWeight = collateralWeight;
+        info.debtWeight = debtWeight;
         emit AddToken(token);
     }
 
@@ -195,7 +216,8 @@ contract D3Vault is D3VaultFunding, D3VaultLiquidation {
         uint256 reserveFactor
     ) external onlyOwner {
         if (!tokens[token]) revert Errors.D3VaultTokenNotExist();
-        if (collateralWeight >= 1e18 || debtWeight <= 1e18) revert Errors.D3VaultWrongWeight();
+        if (collateralWeight >= 1e18 || debtWeight <= 1e18)
+            revert Errors.D3VaultWrongWeight();
         if (reserveFactor >= 1e18) revert Errors.D3VaultWrongReserveFactor();
         AssetInfo storage info = assetInfo[token];
         info.maxDepositAmount = maxDeposit;
@@ -206,31 +228,38 @@ contract D3Vault is D3VaultFunding, D3VaultLiquidation {
         emit SetToken(token);
     }
 
-    function setTokenShark(
+    function setSharkToken(
         address token,
-        uint256 baseInterest,
-        uint256 lowInterestRate,
-        uint256 highInterestRate,
-        uint256 lowPrice,
-        uint256 highPrice
+        uint256 maxDeposit,
+        uint256 maxCollateral,
+        uint256 collateralWeight,
+        uint256 debtWeight,
+        uint256 reserveFactor
     ) external onlyOwner {
-        if (!tokens[token]) revert Errors.D3VaultTokenNotExist();
+        if (!sharkToken[token]) revert Errors.D3VaultTokenNotExist();
+        if (collateralWeight >= 1e18 || debtWeight <= 1e18)
+            revert Errors.D3VaultWrongWeight();
+        if (reserveFactor >= 1e18) revert Errors.D3VaultWrongReserveFactor();
         AssetInfo storage info = assetInfo[token];
-        info.baseInterest = baseInterest;
-        info.lowInterestRate = lowInterestRate;
-        info.highInterestRate = highInterestRate;
-        info.lowPrice = lowPrice;
-        info.highPrice = highPrice;
-        emit SetTokenShark(token);
+        info.maxDepositAmount = maxDeposit;
+        info.maxCollateralAmount = maxCollateral;
+        info.collateralWeight = collateralWeight;
+        info.debtWeight = debtWeight;
+        info.reserveFactor = reserveFactor;
+        emit SetToken(token);
     }
 
-    function withdrawReserves(address token, uint256 amount) external nonReentrant allowedToken(token) onlyOwner {
+    function withdrawReserves(
+        address token,
+        uint256 amount
+    ) external nonReentrant allowedToken(token) onlyOwner {
         if (_MAINTAINER_ == address(0)) revert Errors.D3VaultMaintainerNotSet();
         accrueInterest(token);
         AssetInfo storage info = assetInfo[token];
         uint256 totalReserves = info.totalReserves;
         uint256 withdrawnReserves = info.withdrawnReserves;
-        if (amount > totalReserves - withdrawnReserves) revert Errors.D3VaultWithdrawAmountExceed();
+        if (amount > totalReserves - withdrawnReserves)
+            revert Errors.D3VaultWithdrawAmountExceed();
         info.withdrawnReserves = info.withdrawnReserves + amount;
         info.balance = info.balance - amount;
         IERC20(token).safeTransfer(_MAINTAINER_, amount);
@@ -250,7 +279,9 @@ contract D3Vault is D3VaultFunding, D3VaultLiquidation {
 
     // ---------- View ----------
 
-    function getAssetInfo(address token)
+    function getAssetInfo(
+        address token
+    )
         external
         view
         returns (
@@ -264,13 +295,7 @@ contract D3Vault is D3VaultFunding, D3VaultLiquidation {
             uint256 collateralWeight,
             uint256 debtWeight,
             uint256 withdrawnReserves,
-            uint256 balance,
-            // uint256 baseInterest,
-            // uint256 lowInterestRate,
-            // uint256 highInterestRate,
-            // uint256 lowPrice,
-            // uint256 highPrice
-
+            uint256 balance
         )
     {
         AssetInfo storage info = assetInfo[token];
@@ -293,5 +318,8 @@ contract D3Vault is D3VaultFunding, D3VaultLiquidation {
 
     function getTokenList() external view returns (address[] memory) {
         return tokenList;
+    }
+    function getSharkTokenList() external view returns (address[] memory) {
+        return sharkTokenList;
     }
 }

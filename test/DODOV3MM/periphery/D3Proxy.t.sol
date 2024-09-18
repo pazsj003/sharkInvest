@@ -25,14 +25,19 @@ contract D3ProxyTest is TestContext {
 
     function makerDepositETH() public {
         vm.prank(poolCreator);
-        d3Proxy.makerDeposit{value: 3 ether}(address(d3MM), _ETH_ADDRESS_, 3 ether);
-        
+        d3Proxy.makerDeposit{value: 3 ether}(
+            address(d3MM),
+            _ETH_ADDRESS_,
+            3 ether
+        );
+
         vm.deal(user1, 3 ether);
     }
 
     function testUserWithdrawToken() public {
-        
-        (address dToken,,,,,,,,,,) = d3Vault.getAssetInfo(address(token1));
+        (address dToken, , , , , , , , , , ) = d3Vault.getAssetInfo(
+            address(token1)
+        );
 
         vm.prank(user1);
         D3Token(dToken).approve(address(dodoApprove), type(uint256).max);
@@ -44,8 +49,12 @@ contract D3ProxyTest is TestContext {
         uint256 beforeRatio = d3Vault.getCollateralRatio(address(d3MM));
 
         // construct makerdeposit data
-        bytes memory depositDataBytes =
-            abi.encodeWithSignature("makerDeposit(address,address,uint256)", address(d3MM), _ETH_ADDRESS_, 3 ether);
+        bytes memory depositDataBytes = abi.encodeWithSignature(
+            "makerDeposit(address,address,uint256)",
+            address(d3MM),
+            _ETH_ADDRESS_,
+            3 ether
+        );
 
         // construct refund data
         bytes memory refundData = abi.encodeWithSignature("refundETH()");
@@ -59,7 +68,11 @@ contract D3ProxyTest is TestContext {
 
         vm.prank(poolCreator);
         vm.expectRevert(bytes("D3PROXY_PAYMENT_NOT_MATCH"));
-        d3Proxy.makerDeposit{value: 4 ether}(address(d3MM), _ETH_ADDRESS_, 3 ether);
+        d3Proxy.makerDeposit{value: 4 ether}(
+            address(d3MM),
+            _ETH_ADDRESS_,
+            3 ether
+        );
 
         uint256 wethBalance = d3MM.getTokenReserve(address(weth));
         assertEq(wethBalance, 3 ether);
@@ -77,25 +90,40 @@ contract D3ProxyTest is TestContext {
             110 * 1e16, // debtWeight: 110%
             10 * 1e16 // reserve factor: 10%
         );
-        (,,,,,,,,,, uint256 bVaultReserve) = d3Vault.getAssetInfo(address(weth));
+        (, , , , , , , , , , uint256 bVaultReserve) = d3Vault.getAssetInfo(
+            address(weth)
+        );
 
         vm.deal(user1, 3 ether);
         vm.prank(user1);
-        d3Proxy.userDeposit{value: 1 ether}(user1, _ETH_ADDRESS_, 1 ether, 1 ether);
-        (,,,,,,,,,, uint256 aVaultReserve) = d3Vault.getAssetInfo(address(weth));
+        d3Proxy.userDeposit{value: 1 ether}(
+            user1,
+            _ETH_ADDRESS_,
+            1 ether,
+            1 ether
+        );
+        (, , , , , , , , , , uint256 aVaultReserve) = d3Vault.getAssetInfo(
+            address(weth)
+        );
         assertEq(aVaultReserve - bVaultReserve, 1 ether);
 
         // minReceive protection
         vm.expectRevert(bytes("D3PROXY_MIN_DTOKEN_AMOUNT_FAIL"));
         vm.prank(user1);
-        d3Proxy.userDeposit{value: 1 ether}(user1, _ETH_ADDRESS_, 1 ether, 1.1 ether);
+        d3Proxy.userDeposit{value: 1 ether}(
+            user1,
+            _ETH_ADDRESS_,
+            1 ether,
+            1.1 ether
+        );
     }
 
     function testUserWithdrawETH() public {
         testUserDepositETH();
 
         uint256 bBalance = user1.balance;
-        (address dToken,,,,,,,,,, uint256 bVaultReserve) = d3Vault.getAssetInfo(address(weth));
+        (address dToken, , , , , , , , , , uint256 bVaultReserve) = d3Vault
+            .getAssetInfo(address(weth));
 
         vm.prank(user1);
         D3Token(dToken).approve(address(dodoApprove), type(uint256).max);
@@ -106,10 +134,12 @@ contract D3ProxyTest is TestContext {
 
         vm.prank(user1);
         d3Proxy.userWithdraw(user1, _ETH_ADDRESS_, 0.5 ether, 0.5 ether);
-        
+
         uint256 aBalance = user1.balance;
         assertEq(aBalance - bBalance, 0.5 ether);
-        (,,,,,,,,,, uint256 aVaultReserve) = d3Vault.getAssetInfo(address(weth));
+        (, , , , , , , , , , uint256 aVaultReserve) = d3Vault.getAssetInfo(
+            address(weth)
+        );
         assertEq(bVaultReserve - aVaultReserve, 0.5 ether);
     }
 
@@ -122,15 +152,14 @@ contract D3ProxyTest is TestContext {
         swapData.data = "";
         swapData.payer = user1;
 
-
         vm.prank(user1);
         uint256 receiveToToken = d3Proxy.sellTokens{value: 1 ether}(
             address(d3MM),
-            user1, 
-            _ETH_ADDRESS_, 
-            address(token1), 
-            1 ether, 
-            0, 
+            user1,
+            _ETH_ADDRESS_,
+            address(token1),
+            1 ether,
+            0,
             abi.encode(swapData),
             block.timestamp + 1000
         );
@@ -151,13 +180,13 @@ contract D3ProxyTest is TestContext {
             "uint256,"
             "bytes,"
             "uint256"
-            ")", 
+            ")",
             address(d3MM),
             user1,
-            _ETH_ADDRESS_, 
-            address(token3), 
-            1 ether, 
-            0, 
+            _ETH_ADDRESS_,
+            address(token3),
+            1 ether,
+            0,
             abi.encode(swapData),
             block.timestamp + 1000
         );
@@ -171,7 +200,6 @@ contract D3ProxyTest is TestContext {
 
         vm.prank(user1);
         d3Proxy.multicall{value: 1 ether}(mulData);
-
 
         uint256 afterBalance2 = user1.balance;
         uint256 afterBalance3 = token3.balanceOf(user1);
@@ -191,7 +219,11 @@ contract D3ProxyTest is TestContext {
     function testBuyETHToToken() public {
         makerDepositETH();
 
-        (uint256 payFromAmount, , , ,) = d3MM.queryBuyTokens(address(weth), address(token2), 1 ether);
+        (uint256 payFromAmount, , , , ) = d3MM.queryBuyTokens(
+            address(weth),
+            address(token2),
+            1 ether
+        );
         uint256 beforeBalance2 = user1.balance;
         uint256 beforeBalance3 = token2.balanceOf(user1);
 
@@ -223,13 +255,13 @@ contract D3ProxyTest is TestContext {
             "uint256,"
             "bytes,"
             "uint256"
-            ")", 
+            ")",
             address(d3MM),
             user1,
-            _ETH_ADDRESS_, 
-            address(token2), 
-            1 ether, 
-            1.5 ether, 
+            _ETH_ADDRESS_,
+            address(token2),
+            1 ether,
+            1.5 ether,
             abi.encode(swapData),
             block.timestamp + 1000
         );
@@ -275,19 +307,23 @@ contract D3ProxyTest is TestContext {
             "uint256,"
             "bytes,"
             "uint256"
-            ")", 
+            ")",
             address(d3MM),
             user1,
-            address(token3), 
-            _ETH_ADDRESS_, 
-            12 ether, 
-            0, 
+            address(token3),
+            _ETH_ADDRESS_,
+            12 ether,
+            0,
             abi.encode(swapData),
             block.timestamp + 1000
         );
 
         // construct refund data
-        bytes memory refundData = abi.encodeWithSignature("withdrawWETH(address,uint256)", user1, 0);
+        bytes memory refundData = abi.encodeWithSignature(
+            "withdrawWETH(address,uint256)",
+            user1,
+            0
+        );
         // construct multicall data
         bytes[] memory mulData = new bytes[](2);
         mulData[0] = swapDataBytes;
@@ -298,14 +334,13 @@ contract D3ProxyTest is TestContext {
         d3Proxy.sellTokens(
             address(d3MM),
             user1,
-            address(token3), 
-            _ETH_ADDRESS_, 
-            12 ether, 
-            0, 
+            address(token3),
+            _ETH_ADDRESS_,
+            12 ether,
+            0,
             abi.encode(swapData),
             block.timestamp + 1000
         );
-
 
         uint256 afterBalance2 = user1.balance;
         uint256 afterBalance3 = token3.balanceOf(user1);
@@ -337,19 +372,23 @@ contract D3ProxyTest is TestContext {
             "uint256,"
             "bytes,"
             "uint256"
-            ")", 
+            ")",
             address(d3MM),
             user1,
-            address(token3), 
-            _ETH_ADDRESS_, 
-            1 ether, 
-            30 ether, 
+            address(token3),
+            _ETH_ADDRESS_,
+            1 ether,
+            30 ether,
             abi.encode(swapData),
             block.timestamp + 1000
         );
 
         // construct refund data
-        bytes memory refundData = abi.encodeWithSignature("withdrawWETH(address,uint256)", user1, 0);
+        bytes memory refundData = abi.encodeWithSignature(
+            "withdrawWETH(address,uint256)",
+            user1,
+            0
+        );
         // construct multicall data
         bytes[] memory mulData = new bytes[](2);
         mulData[0] = swapDataBytes;
@@ -360,14 +399,13 @@ contract D3ProxyTest is TestContext {
         d3Proxy.buyTokens(
             address(d3MM),
             user1,
-            address(token3), 
-            _ETH_ADDRESS_, 
-            1 ether, 
-            30 ether, 
+            address(token3),
+            _ETH_ADDRESS_,
+            1 ether,
+            30 ether,
             abi.encode(swapData),
             block.timestamp + 1000
         );
-
 
         uint256 afterBalance2 = user1.balance;
         uint256 afterBalance3 = token3.balanceOf(user1);

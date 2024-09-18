@@ -26,6 +26,21 @@ contract D3Proxy is IDODOSwapCallback {
         address payer;
     }
 
+    struct DepositRecord {
+        address user;
+        address dToken;
+        uint256 dTokenAmount;
+        uint256 amount; // 每次存入的amount
+        uint256 baseInterest; // 每次的base保底收益率不同
+        uint256 lowInterest; // 每次的最低收益率不同
+        uint256 highInterest;
+        uint256 lowPrice;
+        uint256 highPrice;
+        uint256 daysToDeposit;
+        uint256 depositTimeStamp;
+        uint256 depositBlock;
+    }
+
     // ============ Modifiers ============
 
     modifier judgeExpired(uint256 deadLine) {
@@ -227,18 +242,19 @@ contract D3Proxy is IDODOSwapCallback {
             "D3PROXY_MIN_DTOKEN_AMOUNT_FAIL"
         );
     }
-
     function userSharkDeposit(
+        // 做个简化版本测试一下 用前端传入的 struct做
+
         address user,
         address token,
-        uint256 amount,  
+        uint256 amount,
         uint256 baseInterest,
         uint256 lowInterestRate,
         uint256 highInterestRate,
         uint256 lowPrice,
-        uint256 highPrice // 这里想想要不要用data 代替， 明天先做里面的withdraw 最后搞外面一层
+        uint256 highPrice, // 这里想想要不要用data 代替， 明天先做里面的withdraw 最后搞外面一层
         uint256 daysToDeposit,
-      
+        uint256 minDtokenAmount
     ) external payable {
         uint256 dTokenAmount;
         if (token == _ETH_ADDRESS_) {
@@ -247,7 +263,6 @@ contract D3Proxy is IDODOSwapCallback {
             dTokenAmount = ID3Vault(_D3_VAULT_).buySharkDeposit(
                 msg.sender,
                 _WETH_,
-                amount,
                 baseInterest,
                 lowInterestRate,
                 highInterestRate,
@@ -257,7 +272,16 @@ contract D3Proxy is IDODOSwapCallback {
             );
         } else {
             _deposit(msg.sender, _D3_VAULT_, token, amount);
-            dTokenAmount = ID3Vault(_D3_VAULT_).buySharkDeposit(msg.sender, token);
+            dTokenAmount = ID3Vault(_D3_VAULT_).buySharkDeposit(
+                msg.sender,
+                token,
+                baseInterest,
+                lowInterestRate,
+                highInterestRate,
+                lowPrice,
+                highPrice,
+                daysToDeposit
+            );
         }
         require(
             dTokenAmount >= minDtokenAmount,
@@ -265,36 +289,87 @@ contract D3Proxy is IDODOSwapCallback {
         );
     }
 
-    function userSharkWithdraw(
-        address to,
-        address token,
-        uint256 dTokenAmount,
-        uint256 originReceiveAmount
-    ) {
-        if (token != _ETH_ADDRESS_) {
-            (address dToken, , , , , , , , , , ) = ID3Vault(_D3_VAULT_)
-                .getAssetInfo(token);
-            _deposit(msg.sender, address(this), dToken, dTokenAmount);
-            amount = ID3Vault(_D3_VAULT_).SharkWithdraw(
-                to,
-                msg.sender,
-                token,
-                dTokenAmount
-            );
-        } else {
-            (address dToken, , , , , , , , , , ) = ID3Vault(_D3_VAULT_)
-                .getAssetInfo(_WETH_);
-            _deposit(msg.sender, address(this), dToken, dTokenAmount);
-            amount = ID3Vault(_D3_VAULT_).SharkWithdraw(
-                address(this),
-                msg.sender,
-                _WETH_,
-                dTokenAmount
-            );
-            _withdrawWETH(to, amount);
-        }
-        require(amount > originReceiveAmount, "D3PROXY_MIN_RECEIVE_FAIL");
-    }
+    // function userSharkDeposit(
+    //     address user,
+    //     address token,
+    //     uint256 amount,
+    //     uint256 baseInterest,
+    //     uint256 lowInterestRate,
+    //     uint256 highInterestRate,
+    //     uint256 lowPrice,
+    //     uint256 highPrice, // 这里想想要不要用data 代替， 明天先做里面的withdraw 最后搞外面一层
+    //     uint256 daysToDeposit,
+    //     uint256 minDtokenAmount
+    // ) external payable {
+    //     uint256 dTokenAmount;
+    //     if (token == _ETH_ADDRESS_) {
+    //         require(msg.value == amount, "D3PROXY_PAYMENT_NOT_MATCH");
+    //         _deposit(msg.sender, _D3_VAULT_, _WETH_, amount);
+    //         dTokenAmount = ID3Vault(_D3_VAULT_).buySharkDeposit(
+    //             msg.sender,
+    //             _WETH_,
+    //             baseInterest,
+    //             lowInterestRate,
+    //             highInterestRate,
+    //             lowPrice,
+    //             highPrice,
+    //             daysToDeposit
+    //         );
+    //     } else {
+    //         _deposit(msg.sender, _D3_VAULT_, token, amount);
+    //         dTokenAmount = ID3Vault(_D3_VAULT_).buySharkDeposit(
+    //             msg.sender,
+    //             token,
+    //             baseInterest,
+    //             lowInterestRate,
+    //             highInterestRate,
+    //             lowPrice,
+    //             highPrice,
+    //             daysToDeposit
+    //         );
+    //     }
+    //     require(
+    //         dTokenAmount >= minDtokenAmount,
+    //         "D3PROXY_MIN_DTOKEN_AMOUNT_FAIL"
+    //     );
+    // }
+
+    // function userSharkWithdraw(
+    //     address to,
+    //     address token,
+    //     uint256 dTokenAmount,
+    //     uint256 originReceiveAmount,
+    //     uint256 depositTimestamp,
+    //     uint256 depositBlock
+    // ) external payable returns (uint256 amount) {
+    //     if (token != _ETH_ADDRESS_) {
+    //         (address dToken, , , , , , , , , , ) = ID3Vault(_D3_VAULT_)
+    //             .getAssetInfo(token);
+    //         _deposit(msg.sender, address(this), dToken, dTokenAmount);
+    //         amount = ID3Vault(_D3_VAULT_).sharkWithdraw(
+    //             to,
+    //             msg.sender,
+    //             token, // 想想怎么回事  少参数
+    //             dTokenAmount,
+    //             depositTimestamp,
+    //             depositBlock
+    //         );
+    //     } else {
+    //         (address dToken, , , , , , , , , , ) = ID3Vault(_D3_VAULT_)
+    //             .getAssetInfo(_WETH_);
+    //         _deposit(msg.sender, address(this), dToken, dTokenAmount);
+    //         amount = ID3Vault(_D3_VAULT_).sharkWithdraw(
+    //             address(this),
+    //             msg.sender, //????  想想怎么回事
+    //             _WETH_,
+    //             dTokenAmount,
+    //             depositTimestamp,
+    //             depositBlock
+    //         );
+    //         _withdrawWETH(msg.sender, amount);
+    //     }
+    //     require(amount > originReceiveAmount, "D3PROXY_MIN_RECEIVE_FAIL");
+    // }
 
     function userWithdraw(
         address to,

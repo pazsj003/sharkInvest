@@ -25,6 +25,7 @@ contract D3VaultStorage is ReentrancyGuard, Ownable {
     address public _MAINTAINER_;
     address public _PENDING_REMOVE_POOL_;
     address[] public tokenList;
+    address[] public sharkTokenList;
     uint256 public IM; // 1e18 = 100%
     uint256 public MM; // 1e18 = 100%
     uint256 public DISCOUNT = 95e16; // 95%
@@ -36,11 +37,18 @@ contract D3VaultStorage is ReentrancyGuard, Ownable {
     mapping(address => bool) public allPoolAddrMap;
     mapping(address => address[]) public creatorPoolMap; // user => pool[]
     mapping(address => bool) public tokens;
+    mapping(address => bool) public sharkToken;
     mapping(address => AssetInfo) public assetInfo;
     mapping(address => SharkDepositInfo) public sharkDepositInfo;
     mapping(address => bool) public allowedRouter;
     mapping(address => bool) public allowedLiquidator;
     mapping(address => mapping(address => uint256)) public liquidationTarget; // pool => (token => amount)
+
+    struct SharkDepositInfo {
+        address token;
+        mapping(address => mapping(bytes32 => DepositRecord)) depositRecord;
+        mapping(address => bytes32[]) userKeys; // 记录每个用户的存款 key
+    }
     struct DepositRecord {
         address user;
         address dToken;
@@ -54,12 +62,6 @@ contract D3VaultStorage is ReentrancyGuard, Ownable {
         uint256 daysToDeposit;
         uint256 depositTimeStamp;
         uint256 depositBlock;
-    }
-
-    struct SharkDepositInfo {
-        address token;
-        mapping(address => mapping(bytes32 => DepositRecord)) depositRecord;
-        mapping(address => bytes32[]) userKeys; // 记录每个用户的存款 key
     }
 
     struct AssetInfo {
@@ -186,6 +188,11 @@ contract D3VaultStorage is ReentrancyGuard, Ownable {
 
     modifier allowedToken(address token) {
         if (!tokens[token]) revert Errors.D3VaultNotAllowedToken();
+        _;
+    }
+
+    modifier allowedSharkToken(address token) {
+        if (!sharkToken[token]) revert Errors.D3VaultNotAllowedToken();
         _;
     }
 
