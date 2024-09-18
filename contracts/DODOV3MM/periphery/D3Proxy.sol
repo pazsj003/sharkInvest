@@ -243,7 +243,7 @@ contract D3Proxy is IDODOSwapCallback {
         );
     }
     function userSharkDeposit(
-        // 做个简化版本测试一下 用前端传入的 struct做
+        // 做个简化版本测试一下 用前端传入的 struct做 做一个checkpint
 
         address user,
         address token,
