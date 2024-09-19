@@ -94,14 +94,8 @@ interface ID3Vault {
 
     /// @notice 用户申购鲨鱼存款
     function buySharkDeposit(
-        address user,
         address token,
-        uint256 baseInterest,
-        uint256 lowInterestRate,
-        uint256 highInterestRate,
-        uint256 lowPrice,
-        uint256 highPrice,
-        uint256 daysToDeposit
+        uint256[] calldata record
     ) external returns (uint256);
 
     /// @notice 提取用户的鲨鱼存款
@@ -115,24 +109,10 @@ interface ID3Vault {
     ) external returns (uint256);
 
     /// @notice 获取用户所有可提取的鲨鱼存款信息
-    // function getAvailableWithdrawSharkInfo(
-    //     address token,
-    //     address user
-    // )
-    //     external
-    //     view
-    //     returns (
-    //         uint256[] memory dTokenAmounts,
-    //         uint256[] memory amounts,
-    //         uint256[] memory baseInterests,
-    //         uint256[] memory lowInterests,
-    //         uint256[] memory highInterests,
-    //         uint256[] memory lowPrices,
-    //         uint256[] memory highPrices,
-    //         uint256[] memory daysToDeposits,
-    //         uint256[] memory depositTimeStamps,
-    //         uint256[] memory depositBlocks
-    //     );
+    function getAvailableWithdrawSharkInfo(
+        address token,
+        address user
+    ) external view returns (uint256[][] memory);
 
     /// @notice 计算当前的鲨鱼存款收益
     function caculateCurrentSharkInterest(
