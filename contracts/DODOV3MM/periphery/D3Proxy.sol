@@ -238,7 +238,7 @@ contract D3Proxy is IDODOSwapCallback {
         if (token == _ETH_ADDRESS_) {
             require(msg.value == amount, "D3PROXY_PAYMENT_NOT_MATCH");
             _deposit(msg.sender, _D3_VAULT_, _WETH_, amount);
-            dTokenAmount = ID3Vault(_D3_VAULT_).buySharkDeposit(token, record);
+            dTokenAmount = ID3Vault(_D3_VAULT_).buySharkDeposit(_WETH_, record);
         } else {
             _deposit(msg.sender, _D3_VAULT_, token, amount);
             dTokenAmount = ID3Vault(_D3_VAULT_).buySharkDeposit(token, record);
@@ -253,7 +253,7 @@ contract D3Proxy is IDODOSwapCallback {
         address to,
         address token,
         uint256 dTokenAmount,
-        uint256 originReceiveAmount,
+        uint256 minReceiveAmount,
         uint256 depositTimestamp,
         uint256 depositBlock
     ) external payable returns (uint256 amount) {
@@ -283,7 +283,7 @@ contract D3Proxy is IDODOSwapCallback {
             );
             _withdrawWETH(msg.sender, amount);
         }
-        require(amount > originReceiveAmount, "D3PROXY_MIN_RECEIVE_FAIL");
+        require(amount >= minReceiveAmount, "D3PROXY_MIN_RECEIVE_FAIL");
     }
 
     function userWithdraw(

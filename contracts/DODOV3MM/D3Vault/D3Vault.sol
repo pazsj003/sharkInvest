@@ -174,31 +174,13 @@ contract D3Vault is D3VaultFunding, D3VaultLiquidation {
         emit AddToken(token);
     }
 
-    function addNewsharkToken(
-        address token,
-        uint256 maxDeposit,
-        uint256 maxCollateral,
-        uint256 collateralWeight,
-        uint256 debtWeight,
-        uint256 reserveFactor
-    ) external onlyOwner {
+    function addNewsharkToken(address token) external onlyOwner {
         if (sharkToken[token]) revert Errors.D3VaultTokenAlreadyExist();
-        if (collateralWeight >= 1e18 || debtWeight <= 1e18)
-            revert Errors.D3VaultWrongWeight();
-        if (reserveFactor >= 1e18) revert Errors.D3VaultWrongReserveFactor();
+
         sharkToken[token] = true;
         sharkTokenList.push(token);
-        address dToken = createDToken(token);
-        AssetInfo storage info = assetInfo[token];
-        info.dToken = dToken;
-        info.reserveFactor = reserveFactor;
-        info.borrowIndex = 1e18;
-        info.accrualTime = block.timestamp;
-        info.maxDepositAmount = maxDeposit;
-        info.maxCollateralAmount = maxCollateral;
-        info.collateralWeight = collateralWeight;
-        info.debtWeight = debtWeight;
-        emit AddToken(token);
+
+        emit AddsharkToken(token);
     }
 
     function createDToken(address token) internal returns (address) {

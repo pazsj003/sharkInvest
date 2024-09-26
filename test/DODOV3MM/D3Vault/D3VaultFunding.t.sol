@@ -10,7 +10,9 @@ pragma solidity 0.8.16;
 import "forge-std/Test.sol";
 import "../../TestContext.t.sol";
 
-contract D3VaultFundingTest is TestContext {
+contract D3VaultFundingTest is
+    TestContext // 再看这个
+{
     function setUp() public {
         contextBasic();
         token1.mint(user1, 1000 * 1e8);
@@ -26,7 +28,9 @@ contract D3VaultFundingTest is TestContext {
     }
 
     function testUserDeposit() public {
-        (address dToken1,,,,,,,,,,) = d3Vault.getAssetInfo(address(token1));
+        (address dToken1, , , , , , , , , , ) = d3Vault.getAssetInfo(
+            address(token1)
+        );
         vm.prank(user1);
         token1.approve(address(dodoApprove), type(uint256).max);
         vm.prank(user2);
@@ -36,7 +40,12 @@ contract D3VaultFundingTest is TestContext {
         mockUserQuota.setUserQuota(user1, address(token1), 2000);
         vm.prank(user1);
         vm.expectRevert(Errors.D3VaultMinimumDToken.selector);
-        d3Proxy.userDeposit(user1, address(token1), DEFAULT_MINIMUM_DTOKEN - 1, 0);
+        d3Proxy.userDeposit(
+            user1,
+            address(token1),
+            DEFAULT_MINIMUM_DTOKEN - 1,
+            0
+        );
 
         // case 1: fail - exceed quota
         vm.prank(user1);
@@ -47,8 +56,11 @@ contract D3VaultFundingTest is TestContext {
         mockUserQuota.setUserQuota(user1, address(token1), 1000 * 1e8);
         vm.prank(user1);
         d3Proxy.userDeposit(user1, address(token1), 500 * 1e8, 0);
-        assertEq(D3Token(dToken1).balanceOf(user1), 500 * 1e8 - DEFAULT_MINIMUM_DTOKEN); // 1000 dToken is locked to address(1)
-        
+        assertEq(
+            D3Token(dToken1).balanceOf(user1),
+            500 * 1e8 - DEFAULT_MINIMUM_DTOKEN
+        ); // 1000 dToken is locked to address(1)
+
         // case 3: exceed max deposit
         mockUserQuota.setUserQuota(user2, address(token1), 1000 * 1e8);
         assertEq(token1.balanceOf(user2), 1000 * 1e8);
@@ -69,9 +81,13 @@ contract D3VaultFundingTest is TestContext {
         mockUserQuota.setUserQuota(user1, address(token1), 1000 * 1e8);
         vm.prank(user1);
         d3Proxy.userDeposit(user1, address(token1), 100 * 1e8, 0);
-        
+
         uint256 balance1 = token1.balanceOf(user1);
-        userWithdraw(user1, address(token1), 100 * 1e8 - DEFAULT_MINIMUM_DTOKEN);
+        userWithdraw(
+            user1,
+            address(token1),
+            100 * 1e8 - DEFAULT_MINIMUM_DTOKEN
+        );
         uint256 balance2 = token1.balanceOf(user1);
         assertEq(balance2 - balance1, 100 * 1e8 - DEFAULT_MINIMUM_DTOKEN);
 
@@ -101,7 +117,7 @@ contract D3VaultFundingTest is TestContext {
         // now pool has
         // balance: 200 token1
         // borrowed: 100 token1
-        // token1's max collateral amount is 100, 
+        // token1's max collateral amount is 100,
         // only 100 token1 can be used as collateral
         // collateralRatioBorrow = 100 / 100 = 100% > IM
         token1.mint(address(d3MM), 100 * 1e8);
@@ -120,7 +136,10 @@ contract D3VaultFundingTest is TestContext {
         poolQuota.setPoolQuota(address(token1), addressList, quotaList);
         poolBorrow(address(d3MM), address(token1), 100 * 1e8);
 
-        uint256 leftQuota = d3Vault.getPoolLeftQuota(address(d3MM), address(token1));
+        uint256 leftQuota = d3Vault.getPoolLeftQuota(
+            address(d3MM),
+            address(token1)
+        );
         assertEq(leftQuota, 900 * 1e8);
 
         // case 3: has collateral, borrow too much, borrow 300 token1
@@ -134,7 +153,7 @@ contract D3VaultFundingTest is TestContext {
 
         // case 4: pool borrow asset which is not the collateral token
         vm.expectRevert(Errors.D3VaultAmountExceedVaultBalance.selector);
-        poolBorrow(address(d3MM), address(token2), 1 ether); 
+        poolBorrow(address(d3MM), address(token2), 1 ether);
 
         vm.prank(user1);
         token2.approve(address(dodoApprove), type(uint256).max);
@@ -142,7 +161,7 @@ contract D3VaultFundingTest is TestContext {
         mockUserQuota.setUserQuota(user1, address(token2), 1000 ether);
         vm.prank(user1);
         d3Proxy.userDeposit(user1, address(token2), 500 ether, 0);
-        
+
         poolBorrow(address(d3MM), address(token2), 10 ether);
         token2.burn(address(d3MM), 1 ether);
         d3MM.updateReserve(address(token2));
@@ -151,7 +170,8 @@ contract D3VaultFundingTest is TestContext {
         poolBorrow(address(d3MM), address(token2), 1 ether);
         // pool has 200 token1, 10 token2
         // borrowed 100 token1, 11 token2
-        (uint256 token2Balance, uint256 token2Borrowed) = d3Vault.getBalanceAndBorrows(address(d3MM), address(token2));
+        (uint256 token2Balance, uint256 token2Borrowed) = d3Vault
+            .getBalanceAndBorrows(address(d3MM), address(token2));
         assertEq(token2Balance, 10 ether);
         assertEq(token2Borrowed, 11 ether);
 
@@ -191,32 +211,55 @@ contract D3VaultFundingTest is TestContext {
         vm.warp(31536000 + 1);
 
         // after one year, the compound interst is (1 + 0.4/31536000)^31536000 = 1.491824694
-        uint256 compoundInterestRate = d3Vault.getCompoundInterestRate(borrowRate / 31536000, 31536000);
+        uint256 compoundInterestRate = d3Vault.getCompoundInterestRate(
+            borrowRate / 31536000,
+            31536000
+        );
         assertEq(compoundInterestRate, 1479561541141168000);
 
         vm.startPrank(address(d3MM));
-        uint256 newBorrows = d3Vault.getPoolBorrowAmount(address(d3MM), address(token1));
+        uint256 newBorrows = d3Vault.getPoolBorrowAmount(
+            address(d3MM),
+            address(token1)
+        );
         assertEq(newBorrows, 14795615411);
 
         token1.approve(address(d3Vault), type(uint256).max);
         d3Vault.poolRepay(address(token1), 100 * 1e8);
-        
-        uint256 newBorrows2 = d3Vault.getPoolBorrowAmount(address(d3MM), address(token1));
+
+        uint256 newBorrows2 = d3Vault.getPoolBorrowAmount(
+            address(d3MM),
+            address(token1)
+        );
         assertEq(newBorrows2, 4795615411);
 
         // case: repay more than borrows
         vm.expectRevert(Errors.D3VaultAmountExceed.selector);
         d3Vault.poolRepay(address(token1), 4795615411 + 1);
 
-        (,,,,,,,,,, uint256 balanceBefore) = d3Vault.getAssetInfo(address(token1));
-        (, uint256 totalBorrowsBefore,,,,,,,,,) = d3Vault.getAssetInfo(address(token1));
+        (, , , , , , , , , , uint256 balanceBefore) = d3Vault.getAssetInfo(
+            address(token1)
+        );
+        (, uint256 totalBorrowsBefore, , , , , , , , , ) = d3Vault.getAssetInfo(
+            address(token1)
+        );
         d3Vault.poolRepayAll(address(token1));
-        (,,,,,,,,,, uint256 balanceAfter) = d3Vault.getAssetInfo(address(token1));
-        (, uint256 totalBorrowsAfter,,,,,,,,,) = d3Vault.getAssetInfo(address(token1));
-        uint256 newBorrows3 = d3Vault.getPoolBorrowAmount(address(d3MM), address(token1));
+        (, , , , , , , , , , uint256 balanceAfter) = d3Vault.getAssetInfo(
+            address(token1)
+        );
+        (, uint256 totalBorrowsAfter, , , , , , , , , ) = d3Vault.getAssetInfo(
+            address(token1)
+        );
+        uint256 newBorrows3 = d3Vault.getPoolBorrowAmount(
+            address(d3MM),
+            address(token1)
+        );
         assertEq(newBorrows3, 0);
-        assertEq(balanceAfter - balanceBefore, totalBorrowsBefore - totalBorrowsAfter);
-        
+        assertEq(
+            balanceAfter - balanceBefore,
+            totalBorrowsBefore - totalBorrowsAfter
+        );
+
         vm.stopPrank();
     }
 

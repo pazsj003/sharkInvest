@@ -36,7 +36,9 @@ import {MockD3MMFactory} from "mock/MockD3MMFactory.sol";
 import {Errors as PoolErrors} from "contracts/DODOV3MM/lib/Errors.sol";
 import {D3UserQuota} from "D3Vault/periphery/D3UserQuota.sol";
 
-contract TestContext is Test {
+contract TestContext is
+    Test // 再看这个
+{
     DODOApprove public dodoApprove;
     DODOApproveProxy public dodoApproveProxy;
     MockFailD3Proxy public failD3Proxy;
@@ -146,23 +148,58 @@ contract TestContext is Test {
         token2ChainLinkOracle = new MockChainlinkPriceFeed("Token2/USD", 18);
         token3ChainLinkOracle = new MockChainlinkPriceFeed("Token3/USD", 18);
         token4ChainLinkOracle = new MockChainlinkPriceFeed("WETH/USD", 18);
-        sequencerUptimeFeed = new MockChainlinkPriceFeed("SequencerUptimeFeed", 1);
+        sequencerUptimeFeed = new MockChainlinkPriceFeed(
+            "SequencerUptimeFeed",
+            1
+        );
         token1ChainLinkOracle.feedData(1300 * 1e18);
         token2ChainLinkOracle.feedData(12 * 1e18);
         token3ChainLinkOracle.feedData(1 * 1e18);
         token4ChainLinkOracle.feedData(12 * 1e18);
         sequencerUptimeFeed.feedData(0);
         oracle.setPriceSource(
-            address(token1), PriceSource(address(token1ChainLinkOracle), true, 5 * (10 ** 17), 18, 8, 3600)
+            address(token1),
+            PriceSource(
+                address(token1ChainLinkOracle),
+                true,
+                5 * (10 ** 17),
+                18,
+                8,
+                3600
+            )
         ); // don't need tokendec
         oracle.setPriceSource(
-            address(token2), PriceSource(address(token2ChainLinkOracle), true, 5 * (10 ** 17), 18, 18, 3600)
+            address(token2),
+            PriceSource(
+                address(token2ChainLinkOracle),
+                true,
+                5 * (10 ** 17),
+                18,
+                18,
+                3600
+            )
         );
         oracle.setPriceSource(
-            address(token3), PriceSource(address(token3ChainLinkOracle), true, 5 * (10 ** 17), 18, 18, 3600)
+            address(token3),
+            PriceSource(
+                address(token3ChainLinkOracle),
+                true,
+                5 * (10 ** 17),
+                18,
+                18,
+                3600
+            )
         );
         oracle.setPriceSource(
-            address(weth), PriceSource(address(token4ChainLinkOracle), true, 5 * (10 ** 17), 18, 18, 3600)
+            address(weth),
+            PriceSource(
+                address(token4ChainLinkOracle),
+                true,
+                5 * (10 ** 17),
+                18,
+                18,
+                3600
+            )
         );
     }
 
@@ -177,16 +214,48 @@ contract TestContext is Test {
         token3ChainLinkOracle.feedData(1 * 1e18);
         token4ChainLinkOracle.feedData(1800 * 1e18);
         oracle.setPriceSource(
-            address(token1), PriceSource(address(token1ChainLinkOracle), true, 5 * (10 ** 17), 18, 8, 3600)
+            address(token1),
+            PriceSource(
+                address(token1ChainLinkOracle),
+                true,
+                5 * (10 ** 17),
+                18,
+                8,
+                3600
+            )
         );
         oracle.setPriceSource(
-            address(token2), PriceSource(address(token2ChainLinkOracle), true, 5 * (10 ** 17), 18, 18, 3600)
+            address(token2),
+            PriceSource(
+                address(token2ChainLinkOracle),
+                true,
+                5 * (10 ** 17),
+                18,
+                18,
+                3600
+            )
         );
         oracle.setPriceSource(
-            address(token3), PriceSource(address(token3ChainLinkOracle), true, 5 * (10 ** 17), 18, 18, 3600)
+            address(token3),
+            PriceSource(
+                address(token3ChainLinkOracle),
+                true,
+                5 * (10 ** 17),
+                18,
+                18,
+                3600
+            )
         );
         oracle.setPriceSource(
-            address(weth), PriceSource(address(token4ChainLinkOracle), true, 5 * (10 ** 17), 18, 18, 3600)
+            address(weth),
+            PriceSource(
+                address(token4ChainLinkOracle),
+                true,
+                5 * (10 ** 17),
+                18,
+                18,
+                3600
+            )
         );
     }
 
@@ -213,7 +282,7 @@ contract TestContext is Test {
         poolQuota = new D3PoolQuota();
         d3Vault = new D3Vault();
         dodo = new MockERC20("DODO Token", "DODO", 18);
-        d3UserQuota = new D3UserQuota(address(dodo),address(d3Vault));
+        d3UserQuota = new D3UserQuota(address(dodo), address(d3Vault));
         vm.label(address(d3Vault), "d3Vault");
         d3Vault.transferOwnership(vaultOwner);
 
@@ -352,7 +421,7 @@ contract TestContext is Test {
         vm.prank(vaultOwner);
         d3Vault.setNewD3Factory(address(d3MMFactory));
         createD3MM();
-        
+
         createRouter();
         createLiquidatorAdapter();
         vm.prank(vaultOwner);
@@ -376,7 +445,11 @@ contract TestContext is Test {
         d3Proxy.userDeposit(user, token, amount, 0);
     }
 
-    function userWithdraw(address user, address token, uint256 dTokenAmount) public {
+    function userWithdraw(
+        address user,
+        address token,
+        uint256 dTokenAmount
+    ) public {
         vm.prank(user);
         d3Vault.userWithdraw(user, user, token, dTokenAmount);
     }
@@ -415,7 +488,12 @@ contract TestContext is Test {
             realRouteData
         );
         vm.prank(liquidator);
-        d3Vault.liquidateByDODO(pool, order, routeData, address(liquidationRouter));
+        d3Vault.liquidateByDODO(
+            pool,
+            order,
+            routeData,
+            address(liquidationRouter)
+        );
     }
 
     function logCollateralRatio(address pool) public view {
@@ -464,7 +542,11 @@ contract TestContext is Test {
         uint256 numberB,
         uint256 numberBDecimal
     ) public pure returns (uint256 numberSet) {
-        numberSet = (numberA << 32) + (numberADecimal << 24) + (numberB << 8) + numberBDecimal;
+        numberSet =
+            (numberA << 32) +
+            (numberADecimal << 24) +
+            (numberB << 8) +
+            numberBDecimal;
     }
 
     function stickAmount(
@@ -473,7 +555,14 @@ contract TestContext is Test {
         uint256 bidAmount,
         uint256 bidAmountDecimal
     ) public pure returns (uint64 amountSet) {
-        amountSet = uint64(stickOneSlot(askAmount, askAmountDecimal, bidAmount, bidAmountDecimal));
+        amountSet = uint64(
+            stickOneSlot(
+                askAmount,
+                askAmountDecimal,
+                bidAmount,
+                bidAmountDecimal
+            )
+        );
     }
 
     function stickPrice(
@@ -482,56 +571,83 @@ contract TestContext is Test {
         uint256 feeRate,
         uint256 askUpRate,
         uint256 bidDownRate
-    ) public pure returns(uint80 priceInfo) {
+    ) public pure returns (uint80 priceInfo) {
         priceInfo = uint80(
-            (midPrice << 56) + (midPriceDecimal << 48) + (feeRate << 32) + (askUpRate << 16) + bidDownRate
+            (midPrice << 56) +
+                (midPriceDecimal << 48) +
+                (feeRate << 32) +
+                (askUpRate << 16) +
+                bidDownRate
         );
     }
 
-    function stickKs(uint256 kAsk, uint256 kBid)
-        public
-        pure
-        returns (uint32 kSet)
-    {
+    function stickKs(
+        uint256 kAsk,
+        uint256 kBid
+    ) public pure returns (uint32 kSet) {
         kSet = uint32((kAsk << 16) + kBid);
     }
 
-    function contructToken1MMInfo() public pure returns(MakerTypes.TokenMMInfoWithoutCum memory tokenInfo) {
+    function contructToken1MMInfo()
+        public
+        pure
+        returns (MakerTypes.TokenMMInfoWithoutCum memory tokenInfo)
+    {
         tokenInfo.priceInfo = stickPrice(1300, 18, 6, 12, 10);
         tokenInfo.amountInfo = stickAmount(30, 18, 30, 18);
         tokenInfo.kAsk = tokenInfo.kBid = 1000;
         //tokenInfo.decimal = 18;
     }
 
-    function contructToken1Dec8MMInfo() public pure returns(MakerTypes.TokenMMInfoWithoutCum memory tokenInfo) {
+    function contructToken1Dec8MMInfo()
+        public
+        pure
+        returns (MakerTypes.TokenMMInfoWithoutCum memory tokenInfo)
+    {
         tokenInfo.priceInfo = stickPrice(1300, 18, 6, 12, 10);
         tokenInfo.amountInfo = stickAmount(30, 18, 300, 18); // don't need token dec
         tokenInfo.kAsk = tokenInfo.kBid = 1000;
         //tokenInfo.decimal = 18;
     }
 
-    function contructBTCMMInfo() public pure returns(MakerTypes.TokenMMInfoWithoutCum memory tokenInfo) {
+    function contructBTCMMInfo()
+        public
+        pure
+        returns (MakerTypes.TokenMMInfoWithoutCum memory tokenInfo)
+    {
         tokenInfo.priceInfo = stickPrice(26000, 18, 6, 12, 10);
         tokenInfo.amountInfo = stickAmount(30, 18, 3000, 18); // don't need token dec
         tokenInfo.kAsk = tokenInfo.kBid = 1000;
         //tokenInfo.decimal = 8;
     }
 
-    function contructToken2MMInfo() public pure returns(MakerTypes.TokenMMInfoWithoutCum memory tokenInfo) {
+    function contructToken2MMInfo()
+        public
+        pure
+        returns (MakerTypes.TokenMMInfoWithoutCum memory tokenInfo)
+    {
         tokenInfo.priceInfo = stickPrice(12, 18, 6, 23, 15);
         tokenInfo.amountInfo = stickAmount(30, 18, 30, 18);
         tokenInfo.kAsk = tokenInfo.kBid = 1000;
         //tokenInfo.decimal = 18;
     }
 
-    function contructToken3MMInfo() public pure returns(MakerTypes.TokenMMInfoWithoutCum memory tokenInfo) {
+    function contructToken3MMInfo()
+        public
+        pure
+        returns (MakerTypes.TokenMMInfoWithoutCum memory tokenInfo)
+    {
         tokenInfo.priceInfo = stickPrice(1, 18, 6, 12, 10);
         tokenInfo.amountInfo = stickAmount(300, 18, 300, 18);
         tokenInfo.kAsk = tokenInfo.kBid = 1000;
         //tokenInfo.decimal = 18;
     }
 
-    function contructToken4MMInfo() public pure returns(MakerTypes.TokenMMInfoWithoutCum memory tokenInfo) {
+    function contructToken4MMInfo()
+        public
+        pure
+        returns (MakerTypes.TokenMMInfoWithoutCum memory tokenInfo)
+    {
         tokenInfo.priceInfo = stickPrice(12, 18, 6, 20, 14);
         tokenInfo.amountInfo = stickAmount(300, 18, 300, 18);
         tokenInfo.kAsk = tokenInfo.kBid = 1000;
@@ -539,17 +655,48 @@ contract TestContext is Test {
     }
 
     function poolMakerSetAllTokenInfo() public {
-        ( , ,address poolMaker, , ) = d3MM.getD3MMInfo();
+        (, , address poolMaker, , ) = d3MM.getD3MMInfo();
         d3MakerWithPool = D3Maker(poolMaker);
         // set token price
-        MakerTypes.TokenMMInfoWithoutCum memory token1Info = contructToken1Dec8MMInfo();
-        MakerTypes.TokenMMInfoWithoutCum memory token2Info = contructToken2MMInfo();
-        MakerTypes.TokenMMInfoWithoutCum memory token3Info = contructToken3MMInfo();
+        MakerTypes.TokenMMInfoWithoutCum
+            memory token1Info = contructToken1Dec8MMInfo();
+        MakerTypes.TokenMMInfoWithoutCum
+            memory token2Info = contructToken2MMInfo();
+        MakerTypes.TokenMMInfoWithoutCum
+            memory token3Info = contructToken3MMInfo();
         vm.startPrank(maker);
-        d3MakerWithPool.setNewToken(address(token1), true, token1Info.priceInfo, token1Info.amountInfo, token1Info.kAsk, token1Info.kBid);
-        d3MakerWithPool.setNewToken(address(token2), true, token2Info.priceInfo, token2Info.amountInfo, token2Info.kAsk, token2Info.kBid);
-        d3MakerWithPool.setNewToken(address(token3), true, token3Info.priceInfo, token3Info.amountInfo, token3Info.kAsk, token3Info.kBid);
-        d3MakerWithPool.setNewToken(address(weth), true, token2Info.priceInfo, token2Info.amountInfo, token2Info.kAsk, token2Info.kBid);
+        d3MakerWithPool.setNewToken(
+            address(token1),
+            true,
+            token1Info.priceInfo,
+            token1Info.amountInfo,
+            token1Info.kAsk,
+            token1Info.kBid
+        );
+        d3MakerWithPool.setNewToken(
+            address(token2),
+            true,
+            token2Info.priceInfo,
+            token2Info.amountInfo,
+            token2Info.kAsk,
+            token2Info.kBid
+        );
+        d3MakerWithPool.setNewToken(
+            address(token3),
+            true,
+            token3Info.priceInfo,
+            token3Info.amountInfo,
+            token3Info.kAsk,
+            token3Info.kBid
+        );
+        d3MakerWithPool.setNewToken(
+            address(weth),
+            true,
+            token2Info.priceInfo,
+            token2Info.amountInfo,
+            token2Info.kAsk,
+            token2Info.kBid
+        );
         vm.stopPrank();
     }
 
@@ -597,5 +744,4 @@ contract TestContext is Test {
         d3MM.makerDeposit(address(token3));
         vm.stopPrank();
     }
-
 }

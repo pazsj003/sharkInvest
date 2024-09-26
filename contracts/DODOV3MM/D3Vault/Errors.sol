@@ -11,6 +11,7 @@ library Errors {
     error D3VaultNotPendingRemovePool();
     error D3VaultNotD3Pool();
     error D3VaultNotAllowedToken();
+    error D3VaultNotAllowedSharkToken();
     error D3VaultNotD3Factory();
     error D3VaultTokenAlreadyExist();
     error D3VaultTokenNotExist();

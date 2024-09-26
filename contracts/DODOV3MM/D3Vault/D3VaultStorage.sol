@@ -126,7 +126,18 @@ contract D3VaultStorage is ReentrancyGuard, Ownable {
         uint256 amount,
         uint256 dTokenAmount
     );
+    event DebugInfo1(address indexed user, address indexed sender);
+    event DebugInfo2(address indexed user, address indexed sender);
+    event DebugInfo3(uint256 amount1, uint256 amount2);
+
     event SharkInfoDeleted(
+        address indexed user,
+        address indexed token,
+        uint256 depositBlock,
+        uint256 depositTimestamp
+    );
+
+    event AddSharkInterest(
         address indexed user,
         address indexed token,
         uint256 depositBlock,
@@ -155,6 +166,7 @@ contract D3VaultStorage is ReentrancyGuard, Ownable {
     event RemoveLiquidator(address liquidator);
 
     event AddToken(address token);
+    event AddsharkToken(address token);
     event SetToken(address token);
     event SetTokenShark(address token);
 
@@ -192,7 +204,7 @@ contract D3VaultStorage is ReentrancyGuard, Ownable {
     }
 
     modifier allowedSharkToken(address token) {
-        if (!sharkToken[token]) revert Errors.D3VaultNotAllowedToken();
+        if (!sharkToken[token]) revert Errors.D3VaultNotAllowedSharkToken();
         _;
     }
 
