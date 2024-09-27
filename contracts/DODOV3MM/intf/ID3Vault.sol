@@ -94,6 +94,7 @@ interface ID3Vault {
 
     /// @notice 用户申购鲨鱼存款
     function buySharkDeposit(
+        address user,
         address token,
         uint256[] calldata record
     ) external returns (uint256);

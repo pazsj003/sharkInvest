@@ -64,6 +64,7 @@ contract D3VaultFunding is D3VaultStorage {
 
     //shark deposit wihdraw get
     function buySharkDeposit(
+        address user,
         address token,
         uint256[] calldata record
     )
@@ -73,15 +74,16 @@ contract D3VaultFunding is D3VaultStorage {
         allowedToken(token)
         returns (uint256 dTokenAmount)
     {
-        address user = address(uint160(record[0]));
+        address recordUser = address(uint160(record[0]));
 
-        // require(user == msg.sender, "NOT USER PROCESSED"); // not sure
+        require(recordUser == user, "NOT USER PROCESSED"); // not sure
 
         accrueInterest(token);
         AssetInfo storage info = assetInfo[token];
 
         uint256 realBalance = IERC20(token).balanceOf(address(this));
         uint256 amount = realBalance - info.balance;
+        require(amount != 0, "DEPOSIT AMOUNT IS NOT ENOUGH");
 
         if (!ID3UserQuota(_USER_QUOTA_).checkQuota(user, token, amount))
             revert Errors.D3VaultExceedQuota();
@@ -125,23 +127,107 @@ contract D3VaultFunding is D3VaultStorage {
         AssetInfo storage info = assetInfo[token];
         if (dTokenAmount > IDToken(info.dToken).balanceOf(msg.sender))
             revert Errors.D3VaultDTokenBalanceNotEnough();
-        emit DebugInfo3(
-            dTokenAmount,
-            IDToken(info.dToken).balanceOf(msg.sender)
-        );
+        // emit DebugInfo3(
+        //     dTokenAmount,
+        //     IDToken(info.dToken).balanceOf(msg.sender)
+        // );
 
         amount = dTokenAmount.mul(_getExchangeRate(token));
         IDToken(info.dToken).burn(msg.sender, dTokenAmount);
         IERC20(token).safeTransfer(to, amount);
         info.balance = info.balance - amount;
 
-        // require(user == msg.sender, "NOT OWNER PROCESSED");
         // used for calculate user withdraw amount
         // this function could be called from d3Proxy, so we need "user" param
         // In the meantime, some users may hope to use this function directly,
         // to prevent these users fill "user" param with wrong addresses,
         // we use "msg.sender" param to check.
         emit UserWithdraw(msg.sender, user, token, amount, dTokenAmount);
+    }
+
+    function reDepositShark(
+        address user,
+        address token,
+        uint256 originaldTokenAmount,
+        uint256 depositTimestamp,
+        uint256 depositBlock,
+        uint256[] calldata record
+    )
+        external
+        nonReentrant
+        allowedSharkToken(token)
+        allowedToken(token)
+        returns (uint256 dTokenAmount)
+    {
+        require(user == address(uint160(record[0])), "USER IS NOT MATCH");
+        // 先查看 是非 到期
+        accrueInterest(token);
+
+        AssetInfo storage info = assetInfo[token];
+        if (originaldTokenAmount > IDToken(info.dToken).balanceOf(msg.sender))
+            revert Errors.D3VaultDTokenBalanceNotEnough();
+
+        // 重新把利息按照amount 存进去， 修改 deposit info
+        // msg.sender 往里打dtoken 才可以继续
+        uint256 interestAmount = caculateFinalSharkInterest(
+            user,
+            token,
+            originaldTokenAmount,
+            depositBlock,
+            depositTimestamp
+        );
+        uint256 principal = deleteSharkInfo(
+            user,
+            token,
+            depositBlock,
+            depositTimestamp
+        );
+        uint256 amount = interestAmount + principal;
+
+        // deposit
+        dTokenAmount = _reDepositSharkDeposit(
+            user,
+            token,
+            amount,
+            interestAmount
+        );
+
+        addSharkInterest(token, info.dToken, dTokenAmount, amount, record);
+
+        emit SharkDeposit(user, token, amount, dTokenAmount);
+
+        // 利息可能要改变， 也就是所有信息都改变，
+    }
+
+    function _reDepositSharkDeposit(
+        address user,
+        address token,
+        uint256 amount,
+        uint256 interestAmount
+    ) internal returns (uint256 dTokenAmount) {
+        AssetInfo storage info = assetInfo[token];
+        if (!ID3UserQuota(_USER_QUOTA_).checkQuota(user, token, amount))
+            revert Errors.D3VaultExceedQuota();
+
+        uint256 exchangeRate = _getExchangeRate(token);
+        uint256 totalDToken = IDToken(info.dToken).totalSupply();
+        if (totalDToken.mul(exchangeRate) + amount > info.maxDepositAmount)
+            revert Errors.D3VaultExceedMaxDepositAmount();
+        dTokenAmount = amount.div(exchangeRate);
+
+        if (totalDToken == 0) {
+            // permanently lock a very small amount of dTokens into address(1), which reduces potential issues with rounding,
+            // and also prevents the pool from ever being fully drained
+            if (dTokenAmount <= DEFAULT_MINIMUM_DTOKEN)
+                revert Errors.D3VaultMinimumDToken();
+            IDToken(info.dToken).mint(address(1), DEFAULT_MINIMUM_DTOKEN);
+            dTokenAmount = dTokenAmount - DEFAULT_MINIMUM_DTOKEN;
+            IDToken(info.dToken).mint(user, dTokenAmount);
+        } else {
+            IDToken(info.dToken).mint(user, dTokenAmount);
+        }
+
+        info.balance += interestAmount;
     }
 
     function sharkWithdraw(
@@ -203,6 +289,7 @@ contract D3VaultFunding is D3VaultStorage {
         }
         DepositRecord memory getRecord;
         getRecord.user = address(uint160(record[0]));
+
         getRecord.baseInterest = record[1]; // 每次的base保底收益率不同
         getRecord.lowInterest = record[2]; // 每次的最低收益率不同
         getRecord.highInterest = record[3];

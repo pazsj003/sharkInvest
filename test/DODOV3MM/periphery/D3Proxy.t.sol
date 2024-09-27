@@ -139,9 +139,9 @@ contract D3ProxyTest is
         (, , , , , , , , , , uint256 bVaultReserve) = d3Vault.getAssetInfo(
             address(weth)
         );
-        vm.deal(user2, 3 ether);
+        // vm.deal(user2, 3 ether);
 
-        vm.deal(user1, 3 ether);
+        vm.deal(user1, 2 ether);
 
         uint256 baseInterest = 3 * 1e16; // 3% base收益率
         uint256 lowInterest = 5 * 1e16; // 最低收益率5%
@@ -158,14 +158,6 @@ contract D3ProxyTest is
         record[4] = lowPrice;
         record[5] = highPrice;
         record[6] = daysToDeposit;
-
-        // vm.prank(user2);
-        // d3Proxy.userSharkDeposit{value: 1 ether}(
-        //     _ETH_ADDRESS_,
-        //     1 ether,
-        //     1 ether,
-        //     record
-        // );
 
         vm.prank(user1);
         d3Proxy.userSharkDeposit{value: 1 ether}(
@@ -229,27 +221,27 @@ contract D3ProxyTest is
         testUserSharkDepositETH();
         console.log(user1.balance);
 
-        // uint256 currentPrice = ID3Oracle(oracle).getPrice(address(weth));
-        // console.log("current_ORACLE_Price", currentPrice);
+        uint256 currentPrice = ID3Oracle(oracle).getPrice(address(weth));
+        console.log("current_ORACLE_Price", currentPrice);
         for (uint256 i; i <= 30; i++) {
             vm.warp(currentTimestamp + i * 24 * 3600 + 1); // 每天跳一天
             // d3Vault.accrueInterest(address(token2)); // 累积利息
             console.log("day", i); // 打印天数
-            // vm.prank(user1);
-            // uint256 finalInterest = d3Vault.caculateCurrentSharkInterest(
-            //     user1,
-            //     address(weth),
-            //     currentBlock,
-            //     currentTimestamp
-            // );
-            // console.log("currentInterest is ", finalInterest);
+            vm.prank(user1);
+            uint256 finalInterest = d3Vault.caculateCurrentSharkInterest(
+                user1,
+                address(weth),
+                currentBlock,
+                currentTimestamp
+            );
+            console.log("currentInterest is ", finalInterest);
         }
 
-        // uint256[][] memory userSharkInfo = d3Vault
-        //     .getAvailableWithdrawSharkInfo(address(weth), user1);
-        // for (uint256 i = 0; i < 12; i++) {
-        //     console.log("SharkInfo", i, userSharkInfo[0][i]);
-        // }
+        uint256[][] memory userSharkInfo = d3Vault
+            .getAvailableWithdrawSharkInfo(address(weth), user1);
+        for (uint256 i = 0; i < 12; i++) {
+            console.log("SharkInfo", i, userSharkInfo[0][i]);
+        }
 
         uint256 bBalance = user1.balance;
         (address dToken, , , , , , , , , , uint256 bVaultReserve) = d3Vault
@@ -274,15 +266,7 @@ contract D3ProxyTest is
             currentBlock
         ); // 可以做一个redeposit 到期已购继续 滚动 不取出来
 
-        // vm.prank(user1);
-        // d3Proxy.userWithdraw(user1, _ETH_ADDRESS_, 0.5 ether, 0.5 ether);
-
-        // uint256 aBalance = user1.balance;
-        // assertEq(aBalance - bBalance, 0.5 ether);
-        // (, , , , , , , , , , uint256 aVaultReserve) = d3Vault.getAssetInfo(
-        //     address(weth)
-        // );
-        // assertEq(bVaultReserve - aVaultReserve, 0.5 ether);
+        console.log("user eth balance ", user1.balance);
     }
 
     function testSellETHToToken() public {

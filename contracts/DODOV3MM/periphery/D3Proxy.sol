@@ -234,14 +234,23 @@ contract D3Proxy is IDODOSwapCallback {
         uint256[] calldata record
     ) external payable {
         uint256 dTokenAmount;
+        address user = address(uint160(record[0]));
 
         if (token == _ETH_ADDRESS_) {
             require(msg.value == amount, "D3PROXY_PAYMENT_NOT_MATCH");
             _deposit(msg.sender, _D3_VAULT_, _WETH_, amount);
-            dTokenAmount = ID3Vault(_D3_VAULT_).buySharkDeposit(_WETH_, record);
+            dTokenAmount = ID3Vault(_D3_VAULT_).buySharkDeposit(
+                user,
+                _WETH_,
+                record
+            );
         } else {
             _deposit(msg.sender, _D3_VAULT_, token, amount);
-            dTokenAmount = ID3Vault(_D3_VAULT_).buySharkDeposit(token, record);
+            dTokenAmount = ID3Vault(_D3_VAULT_).buySharkDeposit(
+                user,
+                token,
+                record
+            );
         }
         require(
             dTokenAmount >= minDtokenAmount,
